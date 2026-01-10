@@ -7,10 +7,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Syncfusion.WinForms.Controls;
 
 namespace Card_Addiction_POS_System.Forms
 {
-    public partial class HomePage : Form
+    public partial class HomePage : SfForm
     {
         public HomePage()
         {
@@ -19,7 +20,7 @@ namespace Card_Addiction_POS_System.Forms
 
         private void HomePage_Load(object sender, EventArgs e)
         {
-
+            
         }
     }
 }

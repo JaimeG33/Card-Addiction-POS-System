@@ -20,6 +20,23 @@ namespace Card_Addiction_POS_System.Data.SQLServer
             _settings = settings;
         }
 
+        // Shared "current username" for the running application. HeaderControl reads this.
+        public static string? CurrentUsername { get; private set; }
+
+        // Event raised when the current username changes.
+        public static event EventHandler<UserChangedEventArgs>? CurrentUsernameChanged;
+
+        public static void SetCurrentUsername(string? username)
+        {
+            CurrentUsername = username;
+            CurrentUsernameChanged?.Invoke(null, new UserChangedEventArgs(username));
+        }
+
+        public static void ClearCurrentUsername()
+        {
+            SetCurrentUsername(null);
+        }
+
         public string BuildConnectionString(string username, string password)
         {
             var builder = new SqlConnectionStringBuilder
@@ -50,6 +67,10 @@ namespace Card_Addiction_POS_System.Data.SQLServer
             {
                 using var conn = Create(username, password);
                 conn.Open();
+
+                // Set the shared username on successful connection
+                SetCurrentUsername(username);
+
                 message = $"Connected successfully as {username}.";
                 return true;
             }
@@ -63,6 +84,16 @@ namespace Card_Addiction_POS_System.Data.SQLServer
                 message = $"Unexpected error: {ex.Message}";
                 return false;
             }
+        }
+    }
+
+    public sealed class UserChangedEventArgs : EventArgs
+    {
+        public string? Username { get; }
+
+        public UserChangedEventArgs(string? username)
+        {
+            Username = username;
         }
     }
 }

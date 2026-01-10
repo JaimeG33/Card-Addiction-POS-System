@@ -69,6 +69,7 @@ namespace Card_Addiction_POS_System
                     return;
             }
 
+            // Setup Connection Factory to connect to SQL Server DB
             var factory = new SqlConnectionFactory(_settings);
 
             if (factory.TryOpen(username, password, out var message))
@@ -76,7 +77,7 @@ namespace Card_Addiction_POS_System
                 MessageBox.Show(message);
 
                 // Replace with your real next form.
-                var home = new HomePage();
+                var home = new BaseForm();
                 home.Show();
                 Hide();
             }

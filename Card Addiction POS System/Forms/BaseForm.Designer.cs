@@ -1,10 +1,6 @@
-﻿using Syncfusion.WinForms.Controls;
-using System.Drawing;
-using System.Windows.Forms;
-
-namespace Card_Addiction_POS_System.Forms
+﻿namespace Card_Addiction_POS_System.Forms
 {
-    public partial class HomePage : SfForm
+    partial class BaseForm
     {
         /// <summary>
         /// Required designer variable.
@@ -32,39 +28,23 @@ namespace Card_Addiction_POS_System.Forms
         /// </summary>
         private void InitializeComponent()
         {
-            tableLayoutPanel1 = new TableLayoutPanel();
             SuspendLayout();
             // 
-            // tableLayoutPanel1
-            // 
-            tableLayoutPanel1.ColumnCount = 2;
-            tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 70F));
-            tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30F));
-            tableLayoutPanel1.Location = new Point(332, 339);
-            tableLayoutPanel1.Name = "tableLayoutPanel1";
-            tableLayoutPanel1.RowCount = 1;
-            tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-            tableLayoutPanel1.Size = new Size(246, 92);
-            tableLayoutPanel1.TabIndex = 0;
-            // 
-            // HomePage
+            // BaseForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1194, 641);
-            Controls.Add(tableLayoutPanel1);
             MinimumSize = new Size(1210, 680);
-            Name = "HomePage";
+            Name = "BaseForm";
             Style.MdiChild.IconHorizontalAlignment = HorizontalAlignment.Center;
             Style.MdiChild.IconVerticalAlignment = System.Windows.Forms.VisualStyles.VerticalAlignment.Center;
-            Text = "HomePage";
-            WindowState = FormWindowState.Maximized;
-            Load += HomePage_Load;
+            Text = "BaseForm";
+            WindowState = FormWindowState.Minimized;
+            Load += BaseForm_Load;
             ResumeLayout(false);
         }
 
         #endregion
-
-        private TableLayoutPanel tableLayoutPanel1;
     }
 }
