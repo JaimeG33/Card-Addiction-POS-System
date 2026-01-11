@@ -31,7 +31,7 @@ namespace Card_Addiction_POS_System.Forms
 
         private void BaseForm_Load(object sender, EventArgs e)
         {
-
+             
         }
         private void BaseForm_FormClosed(object sender, FormClosedEventArgs e)
         {
