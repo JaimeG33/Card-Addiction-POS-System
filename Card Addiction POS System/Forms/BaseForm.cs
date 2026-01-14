@@ -25,8 +25,23 @@ namespace Card_Addiction_POS_System.Forms
 
         public BaseForm()
         {
-            this.FormClosed += BaseForm_FormClosed;
+            // Ensure designer-generated controls are created first so the designer can render.
             InitializeComponent();
+
+            // Avoid running runtime-only wiring when Visual Studio designer is loading this type.
+            try
+            {
+                if (LicenseManager.UsageMode == LicenseUsageMode.Designtime)
+                {
+                    return;
+                }
+
+                this.FormClosed += BaseForm_FormClosed;
+            }
+            catch
+            {
+                // Swallow exceptions at design time to avoid preventing the designer from loading.
+            }
         }
 
         private void BaseForm_Load(object sender, EventArgs e)

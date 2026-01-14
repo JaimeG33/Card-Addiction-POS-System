@@ -40,7 +40,7 @@
             Style.MdiChild.IconHorizontalAlignment = HorizontalAlignment.Center;
             Style.MdiChild.IconVerticalAlignment = System.Windows.Forms.VisualStyles.VerticalAlignment.Center;
             Text = "BaseForm";
-            WindowState = FormWindowState.Minimized;
+            WindowState = FormWindowState.Maximized;
             Load += BaseForm_Load;
             ResumeLayout(false);
         }

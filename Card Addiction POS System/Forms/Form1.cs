@@ -77,7 +77,7 @@ namespace Card_Addiction_POS_System
                 MessageBox.Show(message);
 
                 // Replace with your real next form.
-                var home = new BaseForm();
+                var home = new HomePage();
                 home.Show();
                 Hide();
             }

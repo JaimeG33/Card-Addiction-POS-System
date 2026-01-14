@@ -23,6 +23,12 @@ namespace Card_Addiction_POS_System.LogIn.Controls
 
         private void HeaderControl_Load(object sender, EventArgs e)
         {
+            // Prevent design-time execution of runtime logic that can throw while the designer loads types.
+            if (LicenseManager.UsageMode == LicenseUsageMode.Designtime)
+            {
+                return;
+            }
+
             ApplyTitleFromParentForm();
             ApplyUserFromConnectionFactory();
 
