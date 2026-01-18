@@ -2,6 +2,8 @@ using System.Windows.Forms;
 using Card_Addiction_POS_System.Data.Settings;
 using Card_Addiction_POS_System.Data.SQLServer;
 using Card_Addiction_POS_System.Forms;
+using Card_Addiction_POS_System.Security;
+
 
 namespace Card_Addiction_POS_System
 {
@@ -76,7 +78,11 @@ namespace Card_Addiction_POS_System
             {
                 MessageBox.Show(message);
 
-                // Replace with your real next form.
+                // Record current username (used throughout app) and cache password in-memory for the session.
+                SqlConnectionFactory.SetCurrentUsername(username);
+                Session.PasswordProvider.SetPassword(password);
+
+                // Navigate to home page (other forms will reuse Session.PasswordProvider)
                 var home = new HomePage();
                 home.Show();
                 Hide();

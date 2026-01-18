@@ -1,13 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using Syncfusion.WinForms.Controls;
+using Card_Addiction_POS_System.Data.Settings;
+using Card_Addiction_POS_System.Data.SQLServer;
+using Card_Addiction_POS_System.Functions.Inventory;
+using Card_Addiction_POS_System.Security;
 
 namespace Card_Addiction_POS_System.Forms
 {
@@ -33,6 +30,8 @@ namespace Card_Addiction_POS_System.Forms
             }
             else
             {
+                // Clear session on application exit
+                Session.Clear();
                 Application.Exit(); // Exit the application if not navigating
             }
         }
@@ -40,7 +39,22 @@ namespace Card_Addiction_POS_System.Forms
         private void btnSale_Click(object sender, EventArgs e)
         {
             IsNavigating = true;
-            var posForm = new BuySell();
+
+            // Load saved server settings (note: AppSettings does NOT store SQL passwords)
+            var settingsStore = new JsonSettingsStore(AppPaths.SettingsPath);
+            var appSettings = settingsStore.Load();
+
+            // Create the SqlConnectionFactory using those settings
+            var connectionFactory = new SqlConnectionFactory(appSettings);
+
+            // Reuse the password stored at login via Session.PasswordProvider
+            var inventoryService = new SearchInventoryDB.InventoryService(connectionFactory, Session.PasswordProvider.GetPasswordAsync);
+
+            var posForm = new BuySell(inventoryService);
+
+            // Ensure password cleared when leaving sales
+            posForm.FormClosed += (s, args) => { /* optionally clear here if you log out from BuySell */ };
+
             posForm.Show();
             this.Close();  // BaseForm will see IsNavigating == true and NOT exit app
         }

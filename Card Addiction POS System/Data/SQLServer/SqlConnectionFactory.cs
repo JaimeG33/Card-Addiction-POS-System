@@ -61,6 +61,21 @@ namespace Card_Addiction_POS_System.Data.SQLServer
             return new SqlConnection(cs);
         }
 
+        /// <summary>
+        /// Create a connection for the currently signed-in user. Caller must supply the user's password
+        /// from a secure source (prompt, credential manager, vault). Throws if no current username is set.
+        /// </summary>
+        public SqlConnection CreateForCurrentUser(string password)
+        {
+            if (string.IsNullOrEmpty(CurrentUsername))
+                throw new InvalidOperationException("No current username is set. Call SetCurrentUsername after successful login.");
+
+            if (password is null)
+                throw new ArgumentNullException(nameof(password));
+
+            return Create(CurrentUsername, password);
+        }
+
         public bool TryOpen(string username, string password, out string message)
         {
             try

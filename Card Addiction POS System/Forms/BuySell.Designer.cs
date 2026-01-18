@@ -42,6 +42,12 @@
             tbPrice = new Syncfusion.Windows.Forms.Tools.CurrencyTextBox();
             lblMktPrice = new Label();
             lblInStock = new Label();
+            tableLayoutPanel3 = new TableLayoutPanel();
+            flowLayoutPanel1 = new FlowLayoutPanel();
+            cbCardGame = new ComboBox();
+            tbSearchBar = new TextBox();
+            btnSearch = new Button();
+            sfDataGrid_InvLookup = new Syncfusion.WinForms.DataGrid.SfDataGrid();
             tableLayoutPanel1.SuspendLayout();
             tableLayoutPanel2.SuspendLayout();
             tLP_img.SuspendLayout();
@@ -49,6 +55,9 @@
             panel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)tbAmtTraded).BeginInit();
             ((System.ComponentModel.ISupportInitialize)tbPrice).BeginInit();
+            tableLayoutPanel3.SuspendLayout();
+            flowLayoutPanel1.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)sfDataGrid_InvLookup).BeginInit();
             SuspendLayout();
             // 
             // headerControl1
@@ -67,6 +76,7 @@
             tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40F));
             tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 60F));
             tableLayoutPanel1.Controls.Add(tableLayoutPanel2, 0, 0);
+            tableLayoutPanel1.Controls.Add(tableLayoutPanel3, 1, 0);
             tableLayoutPanel1.Dock = DockStyle.Fill;
             tableLayoutPanel1.Location = new Point(2, 112);
             tableLayoutPanel1.Name = "tableLayoutPanel1";
@@ -199,6 +209,82 @@
             lblInStock.TabIndex = 0;
             lblInStock.Text = "Amount In Stock:";
             // 
+            // tableLayoutPanel3
+            // 
+            tableLayoutPanel3.ColumnCount = 1;
+            tableLayoutPanel3.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            tableLayoutPanel3.Controls.Add(flowLayoutPanel1, 0, 0);
+            tableLayoutPanel3.Controls.Add(sfDataGrid_InvLookup, 0, 1);
+            tableLayoutPanel3.Dock = DockStyle.Fill;
+            tableLayoutPanel3.Location = new Point(479, 3);
+            tableLayoutPanel3.Name = "tableLayoutPanel3";
+            tableLayoutPanel3.RowCount = 2;
+            tableLayoutPanel3.RowStyles.Add(new RowStyle(SizeType.Percent, 20F));
+            tableLayoutPanel3.RowStyles.Add(new RowStyle(SizeType.Percent, 80F));
+            tableLayoutPanel3.Size = new Size(708, 521);
+            tableLayoutPanel3.TabIndex = 1;
+            // 
+            // flowLayoutPanel1
+            // 
+            flowLayoutPanel1.Controls.Add(cbCardGame);
+            flowLayoutPanel1.Controls.Add(tbSearchBar);
+            flowLayoutPanel1.Controls.Add(btnSearch);
+            flowLayoutPanel1.Dock = DockStyle.Fill;
+            flowLayoutPanel1.Location = new Point(3, 3);
+            flowLayoutPanel1.Name = "flowLayoutPanel1";
+            flowLayoutPanel1.Size = new Size(702, 98);
+            flowLayoutPanel1.TabIndex = 0;
+            // 
+            // cbCardGame
+            // 
+            cbCardGame.FormattingEnabled = true;
+            cbCardGame.Items.AddRange(new object[] { "Yugioh", "Magic", "Pokemon" });
+            cbCardGame.Location = new Point(3, 3);
+            cbCardGame.Name = "cbCardGame";
+            cbCardGame.Size = new Size(156, 23);
+            cbCardGame.TabIndex = 0;
+            // 
+            // tbSearchBar
+            // 
+            tbSearchBar.Dock = DockStyle.Bottom;
+            tbSearchBar.Location = new Point(3, 32);
+            tbSearchBar.Name = "tbSearchBar";
+            tbSearchBar.ReadOnly = true;
+            tbSearchBar.Size = new Size(609, 23);
+            tbSearchBar.TabIndex = 1;
+            tbSearchBar.TextChanged += tbSearchBar_TextChanged;
+            tbSearchBar.KeyDown += tbSearchBar_KeyDown;
+            // 
+            // btnSearch
+            // 
+            btnSearch.Location = new Point(618, 32);
+            btnSearch.Name = "btnSearch";
+            btnSearch.Size = new Size(75, 23);
+            btnSearch.TabIndex = 2;
+            btnSearch.Text = "Search";
+            btnSearch.UseVisualStyleBackColor = true;
+            btnSearch.Click += btnSearch_Click;
+            // 
+            // sfDataGrid_InvLookup
+            // 
+            sfDataGrid_InvLookup.AccessibleName = "Table";
+            sfDataGrid_InvLookup.AllowResizingColumns = true;
+            sfDataGrid_InvLookup.BackColor = Color.White;
+            sfDataGrid_InvLookup.Dock = DockStyle.Fill;
+            sfDataGrid_InvLookup.Location = new Point(3, 107);
+            sfDataGrid_InvLookup.Name = "sfDataGrid_InvLookup";
+            sfDataGrid_InvLookup.Size = new Size(702, 411);
+            sfDataGrid_InvLookup.Style.BorderColor = Color.FromArgb(100, 100, 100);
+            sfDataGrid_InvLookup.Style.CheckBoxStyle.CheckedBackColor = Color.FromArgb(0, 120, 215);
+            sfDataGrid_InvLookup.Style.CheckBoxStyle.CheckedBorderColor = Color.FromArgb(0, 120, 215);
+            sfDataGrid_InvLookup.Style.CheckBoxStyle.IndeterminateBorderColor = Color.FromArgb(0, 120, 215);
+            sfDataGrid_InvLookup.Style.DragPreviewRowStyle.Font = new Font("Segoe UI", 9F);
+            sfDataGrid_InvLookup.Style.DragPreviewRowStyle.RowCountIndicatorBackColor = Color.FromArgb(0, 120, 215);
+            sfDataGrid_InvLookup.Style.DragPreviewRowStyle.RowCountIndicatorTextColor = Color.FromArgb(255, 255, 255);
+            sfDataGrid_InvLookup.Style.HyperlinkStyle.DefaultLinkColor = Color.FromArgb(0, 120, 215);
+            sfDataGrid_InvLookup.TabIndex = 1;
+            sfDataGrid_InvLookup.Text = "sfDataGrid_InvLookup";
+            // 
             // BuySell
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -212,6 +298,7 @@
             Style.MdiChild.IconVerticalAlignment = System.Windows.Forms.VisualStyles.VerticalAlignment.Center;
             Text = "BuySell";
             WindowState = FormWindowState.Maximized;
+            FormClosed += BuySell_FormClosed;
             Load += BuySell_Load;
             tableLayoutPanel1.ResumeLayout(false);
             tableLayoutPanel2.ResumeLayout(false);
@@ -221,6 +308,10 @@
             panel1.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)tbAmtTraded).EndInit();
             ((System.ComponentModel.ISupportInitialize)tbPrice).EndInit();
+            tableLayoutPanel3.ResumeLayout(false);
+            flowLayoutPanel1.ResumeLayout(false);
+            flowLayoutPanel1.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)sfDataGrid_InvLookup).EndInit();
             ResumeLayout(false);
         }
 
@@ -239,5 +330,11 @@
         private Syncfusion.Windows.Forms.Tools.IntegerTextBox tbAmtTraded;
         private Syncfusion.Windows.Forms.Tools.CurrencyTextBox tbPrice;
         private Button btnFinalizeSale;
+        private TableLayoutPanel tableLayoutPanel3;
+        private FlowLayoutPanel flowLayoutPanel1;
+        private Syncfusion.WinForms.DataGrid.SfDataGrid sfDataGrid_InvLookup;
+        private ComboBox cbCardGame;
+        private TextBox tbSearchBar;
+        private Button btnSearch;
     }
 }
