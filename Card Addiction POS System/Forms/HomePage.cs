@@ -12,6 +12,7 @@ namespace Card_Addiction_POS_System.Forms
     {
         // This is the home page used to navigate to other forms.
         public bool IsNavigating { get; set; }
+        public virtual string FormTitle { get; set; } = "Home Page";
         public HomePage()
         {
             InitializeComponent();

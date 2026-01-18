@@ -249,7 +249,6 @@
             tbSearchBar.Dock = DockStyle.Bottom;
             tbSearchBar.Location = new Point(3, 32);
             tbSearchBar.Name = "tbSearchBar";
-            tbSearchBar.ReadOnly = true;
             tbSearchBar.Size = new Size(609, 23);
             tbSearchBar.TabIndex = 1;
             tbSearchBar.TextChanged += tbSearchBar_TextChanged;

@@ -138,25 +138,38 @@ namespace Card_Addiction_POS_System.LogIn.Controls
         private void btnHome_Click(object sender, EventArgs e)
         {
             // Pressing this button should take the user to the HomePage form.
-            if (this.FindForm() is Forms.HomePage)
+            var form = this.FindForm();
+            if (form is Forms.HomePage)
             {
                 // Already on HomePage, do nothing.
                 return;
             }
-            else
-            {
-                var homePage = new Forms.HomePage();
-                if (this.FindForm() is Forms.BaseForm baseForm)
-                {
-                    baseForm.IsNavigating = true;
-                }
-                homePage.Show();
-                this.FindForm()?.Close();
-            }
-        }
 
-        // Hopefully, more code will be added here later to display stuff about the logged in user. 
-        // Ex: username, and connnected database (from Data/SQLServer/SqlConnectionFactory.cs) or possibly the station it is logged on to.
-        // Get the username from Data/SQLServer/SqlConnectionFactory.cs and add it to the text in lblUser.
+            var homePage = new Forms.HomePage();
+
+            // If the current form exposes an IsNavigating boolean (property or field),
+            // set it to true so the form knows we're navigating and won't exit the app.
+            if (form != null)
+            {
+                var type = form.GetType();
+
+                var prop = type.GetProperty("IsNavigating", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (prop != null && prop.PropertyType == typeof(bool) && prop.CanWrite)
+                {
+                    prop.SetValue(form, true);
+                }
+                else
+                {
+                    var field = type.GetField("IsNavigating", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (field != null && field.FieldType == typeof(bool))
+                    {
+                        field.SetValue(form, true);
+                    }
+                }
+            }
+
+            homePage.Show();
+            form?.Close();
+        }
     }
 }

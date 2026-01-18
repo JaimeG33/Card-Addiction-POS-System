@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -24,6 +25,10 @@ namespace Card_Addiction_POS_System.Forms
         {
             InitializeComponent();
             _inventoryService = inventoryService;
+
+            // Allow typing in the search box even if Designer set it ReadOnly
+            tbSearchBar.ReadOnly = false;
+            tbSearchBar.Enabled = true;
 
             ConfigureInventoryGrid();
         }
@@ -78,57 +83,94 @@ namespace Card_Addiction_POS_System.Forms
 
         private void ConfigureInventoryGrid()
         {
+            // Configure basic grid behavior
             sfDataGrid_InvLookup.AutoGenerateColumns = false;
             sfDataGrid_InvLookup.AllowSorting = true;
             sfDataGrid_InvLookup.AllowFiltering = true;
+            sfDataGrid_InvLookup.AllowResizingColumns = true;
 
+            // Let columns fill the available space but don't allow them to shrink below MinimumWidth.
+            sfDataGrid_InvLookup.AutoSizeColumnsMode = AutoSizeColumnsMode.Fill;
+
+            // Make the grid read-only and select whole rows on click.
+            sfDataGrid_InvLookup.AllowEditing = false;      
+            sfDataGrid_InvLookup.SelectionMode = GridSelectionMode.Single;
+            sfDataGrid_InvLookup.SelectionUnit = SelectionUnit.Row;
+
+            // Clear any existing columns (safe to call multiple times)
+            sfDataGrid_InvLookup.Columns.Clear();
+
+            // Card name should take most of the space: give it a larger weight (Width acts as weight in Fill mode).
             sfDataGrid_InvLookup.Columns.Add(new GridTextColumn
             {
                 MappingName = nameof(InventoryItem.CardName),
                 HeaderText = "Card Name",
-                Width = 250
+                Width = 475,
+                MinimumWidth = 200
             });
 
+            // Rarity
             sfDataGrid_InvLookup.Columns.Add(new GridTextColumn
             {
                 MappingName = nameof(InventoryItem.Rarity),
-                HeaderText = "Rarity"
+                HeaderText = "Rarity",
+                Width = 225,
+                MinimumWidth = 100
             });
 
+            // SetId: integer display, no decimals, no grouping/comma separator
             sfDataGrid_InvLookup.Columns.Add(new GridNumericColumn
             {
                 MappingName = nameof(InventoryItem.SetId),
                 HeaderText = "Set",
-                Width = 60
+                Width = 1,
+                MinimumWidth = 100,
+                NumberFormatInfo = new NumberFormatInfo
+                {
+                    NumberDecimalDigits = 0,
+                    NumberGroupSeparator = string.Empty
+                }
             });
 
+            // Market price: currency with dollar sign and two decimals
             sfDataGrid_InvLookup.Columns.Add(new GridNumericColumn
             {
                 MappingName = nameof(InventoryItem.MktPrice),
                 HeaderText = "Market Price",
-                Width = 80,
+                Width = 1,
+                MinimumWidth = 120,
                 FormatMode = FormatMode.Currency,
-                NumberFormatInfo = new System.Globalization.NumberFormatInfo
+                NumberFormatInfo = new NumberFormatInfo
                 {
-                    CurrencyDecimalDigits = 2
+                    CurrencyDecimalDigits = 2,
+                    CurrencySymbol = "$"
                 }
             });
 
+            // AmtInStock: integer without decimals or grouping
             sfDataGrid_InvLookup.Columns.Add(new GridNumericColumn
             {
                 MappingName = nameof(InventoryItem.AmtInStock),
                 HeaderText = "In Stock",
-                Width = 60
+                Width = 1,
+                MinimumWidth = 100,
+                NumberFormatInfo = new NumberFormatInfo
+                {
+                    NumberDecimalDigits = 0,
+                    NumberGroupSeparator = string.Empty
+                }
             });
 
+            // Price up-to-date checkbox
             sfDataGrid_InvLookup.Columns.Add(new GridCheckBoxColumn
             {
                 MappingName = nameof(InventoryItem.PriceUp2Date),
                 HeaderText = "Up 2 Date",
-                Width = 60
+                Width = 1,
+                MinimumWidth = 100
             });
 
-            // Hidden columns
+            // Hidden columns (keep them but not visible)
             sfDataGrid_InvLookup.Columns.Add(new GridTextColumn
             {
                 MappingName = nameof(InventoryItem.ImageUrl),
@@ -210,7 +252,5 @@ namespace Card_Addiction_POS_System.Forms
                 Cursor.Current = previousCursor;
             }
         }
-
-        
     }
 }
