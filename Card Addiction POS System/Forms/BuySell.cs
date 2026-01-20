@@ -15,6 +15,8 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using static Card_Addiction_POS_System.Functions.Inventory.SearchInventoryDB;
+using Syncfusion.WinForms.DataGrid.Events;
+
 
 namespace Card_Addiction_POS_System.Forms
 {
@@ -31,6 +33,9 @@ namespace Card_Addiction_POS_System.Forms
             tbSearchBar.Enabled = true;
 
             ConfigureInventoryGrid();
+
+            // Ensure we receive selection notifications from the grid
+            sfDataGrid_InvLookup.SelectionChanged += sfDataGrid_InvLookup_SelectionChanged;
         }
 
         public bool IsNavigating { get; set; }
@@ -61,23 +66,23 @@ namespace Card_Addiction_POS_System.Forms
         {
             if (this.Width >= 1200)
             {
-                int spacing = 20;
+                //int spacing = 20;
 
-                // Align lblInStock to be 20px to the right of tLP_img, and same top
-                lblInStock.Location = new Point(tLP_img.Right + spacing, tLP_img.Top);
+                //// Align lblInStock to be 20px to the right of tLP_img, and same top
+                //lblInStock.Location = new Point(tLP_img.Right + spacing, tLP_img.Top);
 
-                // Position lblMarketPrice below lblInStock
-                lblMktPrice.Location = new Point(lblInStock.Left, lblInStock.Bottom + 10);
+                //// Position lblMarketPrice below lblInStock
+                //lblMktPrice.Location = new Point(lblInStock.Left, lblInStock.Bottom + 10);
 
-                //Position tbPrice text box
-                tbPrice.Location = new Point(lblMktPrice.Left, lblMktPrice.Bottom + 10);
+                ////Position tbPrice text box
+                //tbPrice.Location = new Point(lblMktPrice.Left, lblMktPrice.Bottom + 10);
 
-                //Position tbAmtTraded text box
-                tbAmtTraded.Location = new Point(lblMktPrice.Right + 25, lblMktPrice.Bottom + 10);
+                ////Position tbAmtTraded text box
+                //tbAmtTraded.Location = new Point(lblMktPrice.Right + 25, lblMktPrice.Bottom + 10);
 
-                //Position add2cart button
-                btnAddCt.Location = new Point(tbPrice.Left, tbPrice.Bottom + 10);
-                //Sale Info label stays where its at
+                ////Position add2cart button
+                //btnAddCt.Location = new Point(tbPrice.Left, tbPrice.Bottom + 10);
+                ////Sale Info label stays where its at
             }
         }
 
@@ -93,7 +98,7 @@ namespace Card_Addiction_POS_System.Forms
             sfDataGrid_InvLookup.AutoSizeColumnsMode = AutoSizeColumnsMode.Fill;
 
             // Make the grid read-only and select whole rows on click.
-            sfDataGrid_InvLookup.AllowEditing = false;      
+            sfDataGrid_InvLookup.AllowEditing = false;
             sfDataGrid_InvLookup.SelectionMode = GridSelectionMode.Single;
             sfDataGrid_InvLookup.SelectionUnit = SelectionUnit.Row;
 
@@ -252,5 +257,102 @@ namespace Card_Addiction_POS_System.Forms
                 Cursor.Current = previousCursor;
             }
         }
+
+        // Stuff for handling selecting individual items in the grid
+        private InventoryItem? _selectedInventoryItem;
+
+        private void sfDataGrid_InvLookup_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void sfDataGrid_InvLookup_CellClick(object sender, Syncfusion.WinForms.DataGrid.Events.CellClickEventArgs e)
+        {
+
+        }
+
+        private void sfDataGrid_InvLookup_SelectionChanged(object sender, Syncfusion.WinForms.DataGrid.Events.SelectionChangedEventArgs e)
+        {
+            // On click:
+
+            // Gather relevant info about the selected item (CardName, MktPrice, ImageUrl, etc.)
+            GrabSelectedInventoryItemData();
+
+            // Load the card image asynchronously (if image URL is available)
+            if (_selectedInventoryItem != null)
+            {
+                _ = LoadCardImageAsync_TCGPlayer(_selectedInventoryItem.ImageUrl);
+            }
+            else
+            {
+                imgCardUrl.Image = null;
+            }
+
+        }
+        // Assemble InventoryItem data:
+        private void GrabSelectedInventoryItemData()
+        {
+            // Use SelectedItem when you have single selection mode
+            var item = sfDataGrid_InvLookup.SelectedItem as InventoryItem;
+            if (item == null)
+            {
+                _selectedInventoryItem = null;
+                tbPrice.Text = string.Empty;
+                tbPrice.DecimalValue = 0m;
+                lblAmtInStock.Text = "N/A";
+                return;
+            }
+
+            _selectedInventoryItem = item;
+
+            // Display market price using US Dollar formatting and keep numeric value set.
+            // Text is formatted for display; DecimalValue keeps the numeric value for calculations.
+            tbPrice.Text = item.MktPrice.ToString("C2", CultureInfo.GetCultureInfo("en-US"));
+            tbPrice.DecimalValue = item.MktPrice;
+            // Also Display the amount in stock value
+            lblAmtInStock.Text = $"{item.AmtInStock}";
+        }
+        // Image
+        private static readonly HttpClient httpClient = new HttpClient();
+        private void imgCardUrl_Click(object sender, EventArgs e)
+        {
+
+        }
+        
+
+        private async Task LoadCardImageAsync_TCGPlayer(string imageUrl)
+        {
+            if (string.IsNullOrWhiteSpace(imageUrl))
+            {
+                imgCardUrl.Image = null;
+                return;
+            }
+
+            try
+            {
+                // Spoof headers to avoid 403 blocks
+                httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+                httpClient.DefaultRequestHeaders.Referrer = new Uri("https://www.tcgplayer.com/");
+                httpClient.DefaultRequestHeaders.Accept.ParseAdd("image/webp,image/apng,image/*,*/*;q=0.8");
+
+                // Request
+                var stream = await httpClient.GetStreamAsync(imageUrl);
+
+                // Load image from stream
+                using (stream)
+                {
+                    imgCardUrl.Image = Image.FromStream(stream);
+                }
+            }
+            catch (Exception ex)
+            {
+                imgCardUrl.Image = null;
+                MessageBox.Show($"Unable to load image.\n\nError: {ex.Message}",
+                    "Image Load Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+       
+
     }
 }

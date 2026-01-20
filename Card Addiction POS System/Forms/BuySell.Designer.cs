@@ -35,6 +35,7 @@
             tLP_img = new TableLayoutPanel();
             imgCardUrl = new PictureBox();
             panel1 = new Panel();
+            lblAmtInStock = new Label();
             btnFinalizeSale = new Button();
             lblSaleInfo = new Label();
             btnAddCt = new Button();
@@ -118,15 +119,19 @@
             // 
             // imgCardUrl
             // 
+            imgCardUrl.BorderStyle = BorderStyle.FixedSingle;
             imgCardUrl.Dock = DockStyle.Fill;
             imgCardUrl.Location = new Point(6, 6);
             imgCardUrl.Name = "imgCardUrl";
             imgCardUrl.Size = new Size(223, 242);
+            imgCardUrl.SizeMode = PictureBoxSizeMode.StretchImage;
             imgCardUrl.TabIndex = 0;
             imgCardUrl.TabStop = false;
+            imgCardUrl.Click += imgCardUrl_Click;
             // 
             // panel1
             // 
+            panel1.Controls.Add(lblAmtInStock);
             panel1.Controls.Add(btnFinalizeSale);
             panel1.Controls.Add(lblSaleInfo);
             panel1.Controls.Add(btnAddCt);
@@ -139,6 +144,15 @@
             panel1.Name = "panel1";
             panel1.Size = new Size(223, 242);
             panel1.TabIndex = 1;
+            // 
+            // lblAmtInStock
+            // 
+            lblAmtInStock.AutoSize = true;
+            lblAmtInStock.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            lblAmtInStock.Location = new Point(116, 7);
+            lblAmtInStock.Name = "lblAmtInStock";
+            lblAmtInStock.Size = new Size(0, 21);
+            lblAmtInStock.TabIndex = 7;
             // 
             // btnFinalizeSale
             // 
@@ -283,6 +297,9 @@
             sfDataGrid_InvLookup.Style.HyperlinkStyle.DefaultLinkColor = Color.FromArgb(0, 120, 215);
             sfDataGrid_InvLookup.TabIndex = 1;
             sfDataGrid_InvLookup.Text = "sfDataGrid_InvLookup";
+            sfDataGrid_InvLookup.SelectionChanged += sfDataGrid_InvLookup_SelectionChanged;
+            sfDataGrid_InvLookup.CellClick += sfDataGrid_InvLookup_CellClick;
+            sfDataGrid_InvLookup.Click += sfDataGrid_InvLookup_Click;
             // 
             // BuySell
             // 
@@ -335,5 +352,6 @@
         private ComboBox cbCardGame;
         private TextBox tbSearchBar;
         private Button btnSearch;
+        private Label lblAmtInStock;
     }
 }
