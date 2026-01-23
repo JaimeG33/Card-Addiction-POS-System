@@ -10,14 +10,26 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Temp\OldProjectStuff\Old_SelectionExample.cs" />
+    <Compile Remove="Temp\OldProjectStuff\Old_UpdatePriceLogic.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Folder Include="Functions\Analytics\" />
-    <Folder Include="Functions\Pricing\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="Temp\OldProjectStuff\Old_SelectionExample.cs" />
+    <None Include="Temp\OldProjectStuff\Old_UpdatePriceLogic.cs" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.4" />
-    <PackageReference Include="Syncfusion.SfDataGrid.WinForms" Version="32.1.23" />
-    <PackageReference Include="Syncfusion.Tools.Windows" Version="32.1.23" />
+    <PackageReference Include="Selenium.Support" Version="4.40.0" />
+    <PackageReference Include="Selenium.WebDriver" Version="4.40.0" />
+    <PackageReference Include="Selenium.WebDriver.ChromeDriver" Version="144.0.7559.3100" />
+    <PackageReference Include="Syncfusion.SfDataGrid.WinForms" Version="32.1.24" />
+    <PackageReference Include="Syncfusion.Tools.Windows" Version="32.1.24" />
   </ItemGroup>
 
 </Project>

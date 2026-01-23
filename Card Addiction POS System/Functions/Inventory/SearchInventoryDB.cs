@@ -18,6 +18,9 @@ namespace Card_Addiction_POS_System.Functions.Inventory
         Task<IReadOnlyList<InventoryItem>> SearchInventoryAsync(
             string cardGameKey,
             string searchText);
+
+        // Persist a new market price for a specific card row.
+        Task UpdatePriceAsync(string cardGameKey, int cardId, decimal newPrice);
     }
 
     internal class SearchInventoryDB
@@ -110,6 +113,38 @@ namespace Card_Addiction_POS_System.Functions.Inventory
                 }
 
                 return results;
+            }
+
+            public async Task UpdatePriceAsync(string cardGameKey, int cardId, decimal newPrice)
+            {
+                if (!_cardGameToTable.TryGetValue(cardGameKey, out var tableName))
+                    throw new ArgumentException("Invalid card game selection.", nameof(cardGameKey));
+
+                // Use parameterized update to avoid SQL injection
+                var updateQuery = $@"UPDATE {tableName}
+                                     SET mktPrice = @mktPrice
+                                     WHERE cardId = @cardId;";
+
+                // Obtain password and open connection
+                var password = await _getPasswordAsync().ConfigureAwait(false);
+                using var conn = _connectionFactory.CreateForCurrentUser(password);
+                password = string.Empty;
+
+                await conn.OpenAsync().ConfigureAwait(false);
+
+                using var cmd = new SqlCommand(updateQuery, conn);
+                
+                // Use a SqlParameter for decimal with precision/scale to match smallmoney/similar server types.
+                var param = new SqlParameter("@mktPrice", SqlDbType.Decimal)
+                {
+                    Precision = 18,
+                    Scale = 2,
+                    Value = newPrice
+                };
+                cmd.Parameters.Add(param);
+                cmd.Parameters.Add("@cardId", SqlDbType.Int).Value = cardId;
+
+                await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
     }

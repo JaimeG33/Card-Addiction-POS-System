@@ -35,6 +35,7 @@
             tLP_img = new TableLayoutPanel();
             imgCardUrl = new PictureBox();
             panel1 = new Panel();
+            lblAmt = new Label();
             lblAmtInStock = new Label();
             btnFinalizeSale = new Button();
             lblSaleInfo = new Label();
@@ -131,6 +132,7 @@
             // 
             // panel1
             // 
+            panel1.Controls.Add(lblAmt);
             panel1.Controls.Add(lblAmtInStock);
             panel1.Controls.Add(btnFinalizeSale);
             panel1.Controls.Add(lblSaleInfo);
@@ -144,6 +146,15 @@
             panel1.Name = "panel1";
             panel1.Size = new Size(223, 242);
             panel1.TabIndex = 1;
+            // 
+            // lblAmt
+            // 
+            lblAmt.AutoSize = true;
+            lblAmt.Location = new Point(118, 55);
+            lblAmt.Name = "lblAmt";
+            lblAmt.Size = new Size(54, 15);
+            lblAmt.TabIndex = 8;
+            lblAmt.Text = "Amount:";
             // 
             // lblAmtInStock
             // 
@@ -162,6 +173,7 @@
             btnFinalizeSale.TabIndex = 6;
             btnFinalizeSale.Text = "Finalize Sale";
             btnFinalizeSale.UseVisualStyleBackColor = true;
+            btnFinalizeSale.Click += btnFinalizeSale_Click;
             // 
             // lblSaleInfo
             // 
@@ -181,6 +193,7 @@
             btnAddCt.TabIndex = 4;
             btnAddCt.Text = "Add to Cart";
             btnAddCt.UseVisualStyleBackColor = true;
+            btnAddCt.Click += btnAddCt_Click;
             // 
             // tbAmtTraded
             // 
@@ -353,5 +366,6 @@
         private TextBox tbSearchBar;
         private Button btnSearch;
         private Label lblAmtInStock;
+        private Label lblAmt;
     }
 }

@@ -16,17 +16,20 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using static Card_Addiction_POS_System.Functions.Inventory.SearchInventoryDB;
 using Syncfusion.WinForms.DataGrid.Events;
-
+using Card_Addiction_POS_System.Functions.Pricing;
+using System.Net.Http;
 
 namespace Card_Addiction_POS_System.Forms
 {
     public partial class BuySell : SfForm
     {
         private readonly IInventoryService _inventoryService;
+        private readonly FindPrice_TCG _tcgPriceFinder;
         public BuySell(IInventoryService inventoryService)
         {
             InitializeComponent();
             _inventoryService = inventoryService;
+            _tcgPriceFinder = new FindPrice_TCG();
 
             // Allow typing in the search box even if Designer set it ReadOnly
             tbSearchBar.ReadOnly = false;
@@ -36,6 +39,8 @@ namespace Card_Addiction_POS_System.Forms
 
             // Ensure we receive selection notifications from the grid
             sfDataGrid_InvLookup.SelectionChanged += sfDataGrid_InvLookup_SelectionChanged;
+
+
         }
 
         public bool IsNavigating { get; set; }
@@ -197,6 +202,9 @@ namespace Card_Addiction_POS_System.Forms
 
         private void BuySell_FormClosed(object sender, FormClosedEventArgs e)
         {
+            _tcgPriceFinder?.Dispose();    // clean up browser when done
+            base.OnFormClosed(e);
+
             if (IsNavigating)
             {
                 return; // Do nothing if navigating to another form
@@ -312,13 +320,87 @@ namespace Card_Addiction_POS_System.Forms
             // Also Display the amount in stock value
             lblAmtInStock.Text = $"{item.AmtInStock}";
         }
+
+        // New: lookup selected item's price on TCGPlayer and update the model/UI
+        private async void LookupPrice(object? sender, EventArgs e)
+        {
+            if (_selectedInventoryItem == null)
+            {
+                MessageBox.Show("Please select an item first.", "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var url = _selectedInventoryItem.MktPriceUrl;
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                MessageBox.Show("Selected item does not have a market price URL.", "No URL", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            btnFinalizeSale.Enabled = false;
+            var previousCursor = Cursor.Current;
+            Cursor.Current = Cursors.WaitCursor;
+
+            try
+            {
+                // Run Selenium lookup on a background thread using a short-lived finder instance
+                var oldPrice = _selectedInventoryItem.MktPrice;
+                decimal newPrice = await Task.Run(() =>
+                {
+                    using var finder = new FindPrice_TCG();
+                    return finder.GetMarketPrice(url);
+                }).ConfigureAwait(false);
+
+                // Marshal back to UI thread to update UI
+                if (this.IsHandleCreated && this.InvokeRequired)
+                {
+                    this.Invoke(() =>
+                    {
+                        _selectedInventoryItem.MktPrice = newPrice;
+                        tbPrice.DecimalValue = newPrice;
+                        tbPrice.Text = newPrice.ToString("C2", CultureInfo.GetCultureInfo("en-US"));
+                        MessageBox.Show($"Price lookup succeeded.\n\nOld: {oldPrice.ToString("C2", CultureInfo.GetCultureInfo("en-US"))}\nNew: {newPrice.ToString("C2", CultureInfo.GetCultureInfo("en-US"))}",
+                            "Price Updated", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    });
+                }
+                else
+                {
+                    _selectedInventoryItem.MktPrice = newPrice;
+                    tbPrice.DecimalValue = newPrice;
+                    tbPrice.Text = newPrice.ToString("C2", CultureInfo.GetCultureInfo("en-US"));
+                    MessageBox.Show($"Price lookup succeeded.\n\nOld: {oldPrice.ToString("C2", CultureInfo.GetCultureInfo("en-US"))}\nNew: {newPrice.ToString("C2", CultureInfo.GetCultureInfo("en-US"))}",
+                        "Price Updated", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Show friendly error; real app may log details
+                if (this.IsHandleCreated && this.InvokeRequired)
+                {
+                    this.Invoke(() =>
+                    {
+                        MessageBox.Show($"Price lookup failed: {ex.Message}", "Lookup Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    });
+                }
+                else
+                {
+                    MessageBox.Show($"Price lookup failed: {ex.Message}", "Lookup Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            finally
+            {
+                btnFinalizeSale.Enabled = true;
+                Cursor.Current = previousCursor;
+            }
+        }
+
         // Image
         private static readonly HttpClient httpClient = new HttpClient();
         private void imgCardUrl_Click(object sender, EventArgs e)
         {
 
         }
-        
+
 
         private async Task LoadCardImageAsync_TCGPlayer(string imageUrl)
         {
@@ -352,7 +434,96 @@ namespace Card_Addiction_POS_System.Forms
             }
         }
 
-       
+        private void btnFinalizeSale_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        // Updated: Add-to-cart now looks up the price, persists it, refreshes the grid and restores selection.
+        private async void btnAddCt_Click(object sender, EventArgs e)
+        {
+            if (_selectedInventoryItem == null)
+            {
+                MessageBox.Show("Please select an item first.", "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var cardGameKey = cbCardGame.SelectedItem as string ?? cbCardGame.Text;
+            if (string.IsNullOrWhiteSpace(cardGameKey))
+            {
+                MessageBox.Show("Please select a card game.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var url = _selectedInventoryItem.MktPriceUrl;
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                MessageBox.Show("Selected item does not have a market price URL.", "No URL", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            // Preserve identity of selected item to re-select after refresh
+            var selectedCardId = _selectedInventoryItem.CardId;
+
+            btnAddCt.Enabled = false;
+            var prevCursor = Cursor.Current;
+            Cursor.Current = Cursors.WaitCursor;
+
+            try
+            {
+                // 1) Lookup new price on background thread
+                decimal newPrice = await Task.Run(() =>
+                {
+                    using var finder = new FindPrice_TCG();
+                    return finder.GetMarketPrice(url);
+                });
+
+                // 2) Persist to database
+                await _inventoryService.UpdatePriceAsync(cardGameKey, selectedCardId, newPrice);
+
+                // 3) Refresh the grid results with the same filter
+                var searchText = tbSearchBar.Text ?? string.Empty;
+                var refreshed = await _inventoryService.SearchInventoryAsync(cardGameKey, searchText);
+
+                // Bind refreshed results (we are on UI thread here)
+                sfDataGrid_InvLookup.DataSource = refreshed ?? null;
+
+                // 4) Restore selection by CardId
+                if (refreshed != null)
+                {
+                    var idx = refreshed.ToList().FindIndex(x => x.CardId == selectedCardId);
+                    if (idx >= 0)
+                    {
+                        // SelectedIndex API available on SfDataGrid
+                        sfDataGrid_InvLookup.SelectedIndex = idx;
+                    }
+                }
+
+                // 5) Update UI and inform user
+                _selectedInventoryItem = refreshed?.FirstOrDefault(r => r.CardId == selectedCardId);
+                if (_selectedInventoryItem != null)
+                {
+                    tbPrice.DecimalValue = _selectedInventoryItem.MktPrice;
+                    tbPrice.Text = _selectedInventoryItem.MktPrice.ToString("C2", CultureInfo.GetCultureInfo("en-US"));
+                }
+
+                MessageBox.Show($"Price updated to {newPrice.ToString("C2", CultureInfo.GetCultureInfo("en-US"))}.",
+                    "Price Updated", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Operation failed: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                btnAddCt.Enabled = true;
+                Cursor.Current = prevCursor;
+            }
+        }
+        // Pricing
+
+
+
 
     }
 }
