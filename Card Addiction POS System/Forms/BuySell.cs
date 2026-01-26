@@ -24,12 +24,11 @@ namespace Card_Addiction_POS_System.Forms
     public partial class BuySell : SfForm
     {
         private readonly IInventoryService _inventoryService;
-        private readonly FindPrice_TCG _tcgPriceFinder;
+
         public BuySell(IInventoryService inventoryService)
         {
             InitializeComponent();
             _inventoryService = inventoryService;
-            _tcgPriceFinder = new FindPrice_TCG();
 
             // Allow typing in the search box even if Designer set it ReadOnly
             tbSearchBar.ReadOnly = false;
@@ -39,8 +38,6 @@ namespace Card_Addiction_POS_System.Forms
 
             // Ensure we receive selection notifications from the grid
             sfDataGrid_InvLookup.SelectionChanged += sfDataGrid_InvLookup_SelectionChanged;
-
-
         }
 
         public bool IsNavigating { get; set; }
@@ -202,8 +199,14 @@ namespace Card_Addiction_POS_System.Forms
 
         private void BuySell_FormClosed(object sender, FormClosedEventArgs e)
         {
-            _tcgPriceFinder?.Dispose();    // clean up browser when done
-            base.OnFormClosed(e);
+            // Do NOT call base.OnFormClosed(e) here. This method is a handler wired to the FormClosed event.
+            // Calling base.OnFormClosed(e) from an event handler can re-trigger the event and cause recursion.
+            //
+            // If you need to override OnFormClosed, implement:
+            // protected override void OnFormClosed(FormClosedEventArgs e) { /* cleanup */ base.OnFormClosed(e); }
+            //
+            // Clean up any resources you own here (no long-lived finder field remains).
+            // If you later add disposable resources, dispose them here safely.
 
             if (IsNavigating)
             {

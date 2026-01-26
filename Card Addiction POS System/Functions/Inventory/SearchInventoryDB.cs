@@ -9,6 +9,45 @@ using Card_Addiction_POS_System.Data.SQLServer;
 using System.Data;
 using Card_Addiction_POS_System.Functions.Models;
 
+//
+// SearchInventoryDB - Overview & usage template
+// -------------------------------------------------
+// Purpose:
+// - Encapsulates database access for inventory-related operations (search and price updates).
+/// - Provides an inner concrete `InventoryService` implementing the public `IInventoryService` interface.
+// - The implementation is careful about security (password obtained on-demand), SQL parameterization,
+//   and efficient data reading (cached ordinals).
+//
+// Usage template (call from Forms or other UI code):
+// -------------------------------------------------
+// // Create a factory that knows how to construct connections for the current user.
+// var connectionFactory = new SqlConnectionFactory(/* server/config args as required */);
+//
+// // Provide a delegate to securely obtain the current user's password on demand.
+// // Example: a dialog that prompts the user asynchronously, or a credential manager lookup.
+// Func<Task<string>> getPasswordAsync = async () =>
+/// {
+//     // Prompt user or fetch from secure store
+//     return await Task.FromResult("user-password");
+// };
+//
+// // Construct the service
+// var inventoryService = new SearchInventoryDB.InventoryService(connectionFactory, getPasswordAsync);
+//
+// // Example: Search for cards (async call from an async-event handler)
+// IReadOnlyList<InventoryItem> items = await inventoryService.SearchInventoryAsync("Magic", "Black Lotus");
+//
+// // Example: Update price for a card
+// await inventoryService.UpdatePriceAsync("Magic", cardId: 12345, newPrice: 99.99m);
+//
+// Notes:
+// - Always call these methods from async contexts to avoid blocking UI threads.
+// - The password delegate is called inside the method; do not cache the returned password longer than necessary.
+// - For DI-friendly usage, wrap InventoryService with your IoC container and supply a secure password provider.
+// 
+// Detailed comments are included inline in the implementation below to explain specific patterns.
+//
+
 namespace Card_Addiction_POS_System.Functions.Inventory
 {
     // Move the interface to the namespace level and make it public so it can be used
@@ -25,12 +64,23 @@ namespace Card_Addiction_POS_System.Functions.Inventory
 
     internal class SearchInventoryDB
     {
+        /// <summary>
+        /// InventoryService
+        /// - Concrete implementation of IInventoryService backed by SQL Server.
+        /// - Designed to be instantiated with a connection factory and a delegate to obtain the
+        ///   user's password at call time (avoids long-lived password variables).
+        /// - Key implementation details are documented inline near the code that implements them.
+        /// </summary>
         public class InventoryService : IInventoryService
         {
             private readonly SqlConnectionFactory _connectionFactory;
+
             // Delegate used to obtain the current user's password securely at call time.
+            // Using a Func<Task<string>> makes it easy to prompt the user or query a secure vault asynchronously.
             private readonly Func<Task<string>> _getPasswordAsync;
 
+            // Map logical card game names used by UI to physical table names in the DB.
+            // Centralizing this mapping here makes it easy to add new games or change table names later.
             private static readonly Dictionary<string, string> _cardGameToTable = new()
             {
                 ["Yugioh"] = "YugiohInventory",
@@ -38,12 +88,33 @@ namespace Card_Addiction_POS_System.Functions.Inventory
                 ["Pokemon"] = "PokemonInventory"
             };
 
+            /// <summary>
+            /// Constructor
+            /// - Accepts a SqlConnectionFactory to centralize connection creation and a getPassword delegate.
+            /// - Throws if getPasswordAsync is null so callers must provide a secure method to obtain credentials.
+            /// </summary>
             public InventoryService(SqlConnectionFactory connectionFactory, Func<Task<string>> getPasswordAsync)
             {
                 _connectionFactory = connectionFactory;
                 _getPasswordAsync = getPasswordAsync ?? throw new ArgumentNullException(nameof(getPasswordAsync));
             }
 
+            /// <summary>
+            /// SearchInventoryAsync
+            /// - Executes a parameterized SQL query to find rows where cardName LIKE @cardName.
+            /// - Uses the provided connection factory to create a connection for the current user using a password
+            ///   obtained on-demand via the delegate.
+            /// - Uses explicit parameter types (SqlDbType.NVarChar) instead of AddWithValue to avoid subtle type inference issues.
+            /// - Caches ordinals (GetOrdinal) once per reader which is faster and less error prone than using string-based access repeatedly.
+            /// - Converts SQL types to CLR-friendly values and guards against DBNull where appropriate.
+            /// 
+            /// Performance & security notes (reusable pattern):
+            /// - Obtain the minimal required permissions for the connection used by the factory.
+            /// - Clear password reference as soon as possible after creating connection to reduce in-memory exposure.
+            /// - Use CommandBehavior.CloseConnection combined with using on the reader to ensure the connection closes
+            ///   when the reader is disposed or finished.
+            /// - Caching ordinals is a small but effective optimization when reading many rows.
+            /// </summary>
             public async Task<IReadOnlyList<InventoryItem>> SearchInventoryAsync(
                 string cardGameKey,
                 string searchText)
@@ -51,6 +122,7 @@ namespace Card_Addiction_POS_System.Functions.Inventory
                 if (!_cardGameToTable.TryGetValue(cardGameKey, out var tableName))
                     throw new ArgumentException("Invalid card game selection.", nameof(cardGameKey));
 
+                // Base query uses a format placeholder for the table name; parameters are used for user input.
                 const string baseQuery =
                     @"SELECT cardName, rarity, setId, mktPrice, conditionId, amtInStock, 
                      priceUp2Date, imageURL, mktPriceURL, cardId
@@ -63,6 +135,7 @@ namespace Card_Addiction_POS_System.Functions.Inventory
                 var results = new List<InventoryItem>();
 
                 // Obtain password on-demand (e.g. from prompt, credential manager, vault)
+                // Important: do not store this password longer than necessary.
                 var password = await _getPasswordAsync().ConfigureAwait(false);
 
                 // Create connection for the current user using the password provided at runtime.
@@ -74,12 +147,15 @@ namespace Card_Addiction_POS_System.Functions.Inventory
                 await conn.OpenAsync().ConfigureAwait(false);
 
                 using var cmd = new SqlCommand(query, conn);
+
                 // Use explicit parameter type to avoid AddWithValue pitfalls
+                // (AddWithValue may infer types incorrectly in some cases, leading to suboptimal plans).
                 cmd.Parameters.Add("@cardName", SqlDbType.NVarChar, 256).Value = "%" + searchText.Trim() + "%";
 
+                // Execute reader with CloseConnection flag so disposing the reader closes the connection too.
                 using var reader = await cmd.ExecuteReaderAsync(CommandBehavior.CloseConnection).ConfigureAwait(false);
 
-                // Cache ordinals for performance and clarity
+                // Cache ordinals for performance and clarity: using ordinals avoids repeated string lookups and slightly faster access.
                 var ordCardName = reader.GetOrdinal("cardName");
                 var ordRarity = reader.GetOrdinal("rarity");
                 var ordSetId = reader.GetOrdinal("setId");
@@ -94,11 +170,13 @@ namespace Card_Addiction_POS_System.Functions.Inventory
                 while (await reader.ReadAsync().ConfigureAwait(false))
                 {
                     // tinyint -> byte in CLR; cast to int for your model if needed
+                    // Defensive reading: check IsDBNull before reading to avoid exceptions.
                     var conditionId = !reader.IsDBNull(ordConditionId) ? (int)reader.GetByte(ordConditionId) : 0;
                     var amtInStock = !reader.IsDBNull(ordAmtInStock) ? (int)reader.GetByte(ordAmtInStock) : 0;
 
                     results.Add(new InventoryItem
                     {
+                        // Use conditional checks for DBNull for each column that may contain nulls.
                         CardName = reader.IsDBNull(ordCardName) ? string.Empty : reader.GetString(ordCardName),
                         Rarity = reader.IsDBNull(ordRarity) ? string.Empty : reader.GetString(ordRarity),
                         SetId = reader.IsDBNull(ordSetId) ? 0 : reader.GetInt16(ordSetId),
@@ -115,6 +193,17 @@ namespace Card_Addiction_POS_System.Functions.Inventory
                 return results;
             }
 
+            /// <summary>
+            /// UpdatePriceAsync
+            /// - Updates the mktPrice column for a specified card row in the game-specific table.
+            /// - Uses parameterized SQL and a SqlParameter for decimal with explicit precision and scale to avoid
+            ///   mismatches with server-side types (e.g. smallmoney).
+            /// - Obtains the password on-demand, opens a connection, executes the command, then disposes the connection.
+            /// 
+            /// Reusable pattern:
+            /// - Use explicit SqlParameter with SqlDbType and set Precision/Scale for decimal values.
+            /// - Always prefer parameterized queries over string concatenation to avoid SQL injection.
+            /// </summary>
             public async Task UpdatePriceAsync(string cardGameKey, int cardId, decimal newPrice)
             {
                 if (!_cardGameToTable.TryGetValue(cardGameKey, out var tableName))
