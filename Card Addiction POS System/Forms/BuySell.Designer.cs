@@ -71,6 +71,7 @@
             headerControl1.Name = "headerControl1";
             headerControl1.Size = new Size(1190, 110);
             headerControl1.TabIndex = 0;
+            headerControl1.Load += headerControl1_Load;
             // 
             // tableLayoutPanel1
             // 
@@ -230,7 +231,7 @@
             // 
             lblInStock.AutoSize = true;
             lblInStock.Font = new Font("Segoe UI", 9.75F, FontStyle.Regular, GraphicsUnit.Point, 0);
-            lblInStock.Location = new Point(12, 9);
+            lblInStock.Location = new Point(5, 9);
             lblInStock.Name = "lblInStock";
             lblInStock.Size = new Size(105, 17);
             lblInStock.TabIndex = 0;

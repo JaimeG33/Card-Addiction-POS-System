@@ -523,6 +523,11 @@ namespace Card_Addiction_POS_System.Forms
                 Cursor.Current = prevCursor;
             }
         }
+
+        private void headerControl1_Load(object sender, EventArgs e)
+        {
+
+        }
         // Pricing
 
 

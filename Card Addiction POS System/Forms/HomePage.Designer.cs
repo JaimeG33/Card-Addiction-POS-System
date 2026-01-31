@@ -36,6 +36,7 @@ namespace Card_Addiction_POS_System.Forms
             flowLayoutPanel1 = new FlowLayoutPanel();
             btnOrders = new Button();
             btnSale = new Button();
+            btnInventoryMgmt = new Button();
             headerControl1 = new Card_Addiction_POS_System.LogIn.Controls.HeaderControl();
             tableLayoutPanel1.SuspendLayout();
             flowLayoutPanel1.SuspendLayout();
@@ -59,6 +60,7 @@ namespace Card_Addiction_POS_System.Forms
             // 
             flowLayoutPanel1.Controls.Add(btnOrders);
             flowLayoutPanel1.Controls.Add(btnSale);
+            flowLayoutPanel1.Controls.Add(btnInventoryMgmt);
             flowLayoutPanel1.Dock = DockStyle.Fill;
             flowLayoutPanel1.Location = new Point(3, 3);
             flowLayoutPanel1.Name = "flowLayoutPanel1";
@@ -86,6 +88,18 @@ namespace Card_Addiction_POS_System.Forms
             btnSale.Text = "Sale";
             btnSale.UseVisualStyleBackColor = false;
             btnSale.Click += btnSale_Click;
+            // 
+            // btnInventoryMgmt
+            // 
+            btnInventoryMgmt.BackColor = Color.LightGray;
+            btnInventoryMgmt.Location = new Point(366, 10);
+            btnInventoryMgmt.Margin = new Padding(10);
+            btnInventoryMgmt.Name = "btnInventoryMgmt";
+            btnInventoryMgmt.Size = new Size(158, 54);
+            btnInventoryMgmt.TabIndex = 2;
+            btnInventoryMgmt.Text = "Manage Inventory";
+            btnInventoryMgmt.UseVisualStyleBackColor = false;
+            btnInventoryMgmt.Click += btnInventoryMgmt_Click;
             // 
             // headerControl1
             // 
@@ -123,5 +137,6 @@ namespace Card_Addiction_POS_System.Forms
         private FlowLayoutPanel flowLayoutPanel1;
         private Button btnOrders;
         private Button btnSale;
+        private Button btnInventoryMgmt;
     }
 }

@@ -59,5 +59,30 @@ namespace Card_Addiction_POS_System.Forms
             posForm.Show();
             this.Close();  // BaseForm will see IsNavigating == true and NOT exit app
         }
+
+        private void btnInventoryMgmt_Click(object sender, EventArgs e)
+        {
+            IsNavigating = true;
+
+            // Load saved server settings (AppSettings does NOT store SQL passwords)
+            var settingsStore = new JsonSettingsStore(AppPaths.SettingsPath);
+            var appSettings = settingsStore.Load();
+
+            // Create the SqlConnectionFactory using those settings
+            var connectionFactory = new SqlConnectionFactory(appSettings);
+
+            // Reuse the password stored at login via Session.PasswordProvider
+            var inventoryService = new SearchInventoryDB.InventoryService(connectionFactory, Session.PasswordProvider.GetPasswordAsync);
+
+            // Create InventoryMgmt with the same DI pattern used for BuySell
+            var inventoryForm = new InventoryMgmt(inventoryService);
+
+            // Optional: attach a FormClosed handler if you need to perform cleanup
+            inventoryForm.FormClosed += (s, args) => { /* optional cleanup when leaving InventoryMgmt */ };
+
+            // Show the form and close the HomePage (prevent app exit via IsNavigating)
+            inventoryForm.Show();
+            this.Close();
+        }
     }
 }
