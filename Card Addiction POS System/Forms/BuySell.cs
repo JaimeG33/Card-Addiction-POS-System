@@ -18,12 +18,26 @@ using static Card_Addiction_POS_System.Functions.Inventory.SearchInventoryDB;
 using Syncfusion.WinForms.DataGrid.Events;
 using Card_Addiction_POS_System.Functions.Pricing;
 using System.Net.Http;
+using Card_Addiction_POS_System.Data.Settings;
+using Card_Addiction_POS_System.Data.SQLServer;
+using Card_Addiction_POS_System.Security;
+using Card_Addiction_POS_System.Functions.Sales;
+using Card_Addiction_POS_System.LogIn.UserInfo;
+using Microsoft.Data.SqlClient;
+using Card_Addiction_POS_System.Forms.Controls; // <-- added to reference CustomConfirm
 
 namespace Card_Addiction_POS_System.Forms
 {
     public partial class BuySell : SfForm
     {
         private readonly IInventoryService _inventoryService;
+
+        // In-memory cart bound to the cart grid.
+        private readonly BindingList<TransactionLineItem> _cartBinding = new();
+
+        // Sale id reserver/holder
+        private DetermineSaleId? _saleIdDeterminer;
+        private int? _reservedSaleId;
 
         public BuySell(IInventoryService inventoryService)
         {
@@ -38,12 +52,19 @@ namespace Card_Addiction_POS_System.Forms
 
             // Ensure we receive selection notifications from the grid
             sfDataGrid_InvLookup.SelectionChanged += sfDataGrid_InvLookup_SelectionChanged;
+
+            // Configure cart grid to show current cart contents
+            // Use a BindingList so the grid updates when items are added/removed.
+            sfDataGrid_Cart.AutoGenerateColumns = true;
+            sfDataGrid_Cart.AllowEditing = false;
+            sfDataGrid_Cart.DataSource = _cartBinding;
         }
 
         public bool IsNavigating { get; set; }
         public virtual string FormTitle { get; set; } = "Sales";
 
-        private void BuySell_Load(object sender, EventArgs e)
+        // Make Load async so we can reserve a sale id after designer-time check.
+        private async void BuySell_Load(object sender, EventArgs e)
         {
             // Avoid running layout/resize code while Visual Studio Designer is rendering.
             if (LicenseManager.UsageMode == LicenseUsageMode.Designtime)
@@ -54,6 +75,419 @@ namespace Card_Addiction_POS_System.Forms
             // Resize image and adjust layout
             ImageResizing();
             PositionLabels();
+
+            // Reserve or reuse sale id for this session/form on the UI context.
+            // NOTE: do NOT ConfigureAwait(false) here so continuation runs on UI thread.
+            await ReserveSaleIdAsync();
+        }
+
+        private async Task ReserveSaleIdAsync()
+        {
+            try
+            {
+                var settingsStore = new JsonSettingsStore(AppPaths.SettingsPath);
+                var appSettings = settingsStore.Load();
+                var connectionFactory = new SqlConnectionFactory(appSettings);
+
+                // Create determiner and reserve or reuse next sale id
+                _saleIdDeterminer = new DetermineSaleId(connectionFactory, Session.PasswordProvider.GetPasswordAsync);
+                _reservedSaleId = await _saleIdDeterminer.ReserveNextSaleIdAsync();
+
+                // Update UI (we are on UI thread because we didn't ConfigureAwait(false) above)
+                lblSaleInfo.Text = $"Sale ID: {_reservedSaleId}";
+            }
+            catch (Exception ex)
+            {
+                // Non-fatal: inform user and continue
+                MessageBox.Show($"Warning reserving sale id: {ex.Message}", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        // Called after a successful finalize to reset the UI for the next sale but keep current search/results.
+        private void ResetFormForNextSale()
+        {
+            // Clear cart
+            _cartBinding.Clear();
+
+            // Reset selection & detail UI
+            _selectedInventoryItem = null;
+            imgCardUrl.Image = null;
+            tbPrice.DecimalValue = 0m;
+            tbPrice.Text = string.Empty;
+            tbAmtTraded.IntegerValue = 1L;
+            tbAmtTraded.Text = "1";
+            lblAmtInStock.Text = "N/A";
+
+            // Keep search results and current tab intact
+            lblSaleInfo.Text = _reservedSaleId.HasValue ? $"Sale ID: {_reservedSaleId} (reserved)" : "Sale ID: N/A";
+        }
+
+        // Add helper mapping used when updating priceUp2Date directly:
+        private static readonly Dictionary<string, string> _uiCardGameToTable = new()
+        {
+            ["Yugioh"] = "YugiohInventory",
+            ["Magic"] = "MagicInventory",
+            ["Pokemon"] = "PokemonInventory"
+        };
+
+        // Price lookup method — updated to also mark priceUp2Date and refresh grid
+        private async Task<decimal?> PriceLookupAndUpdate()
+        {
+            if (_selectedInventoryItem == null)
+            {
+                MessageBox.Show("Please select an item first.", "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return null;
+            }
+
+            var cardGameKey = cbCardGame.SelectedItem as string ?? cbCardGame.Text;
+            if (string.IsNullOrWhiteSpace(cardGameKey))
+            {
+                MessageBox.Show("Please select a card game.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return null;
+            }
+
+            var url = _selectedInventoryItem.MktPriceUrl;
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                MessageBox.Show("Selected item does not have a market price URL.", "No URL", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return null;
+            }
+
+            var selectedCardId = _selectedInventoryItem.CardId;
+
+            btnAddCt.Enabled = false;
+            var prevCursor = Cursor.Current;
+            Cursor.Current = Cursors.WaitCursor;
+
+            try
+            {
+                // 1) Lookup new price on background thread
+                decimal newPrice = await Task.Run(() =>
+                {
+                    using var finder = new FindPrice_TCG();
+                    return finder.GetMarketPrice(url);
+                }).ConfigureAwait(false);
+
+                // 2) Persist price to DB via inventory service
+                await _inventory_service_update_guard(cardGameKey, selectedCardId, newPrice).ConfigureAwait(false);
+
+                // 3) Mark the row as up-to-date in DB (priceUp2Date = 1) using a small inline helper.
+                await UpdatePriceUp2DateInDbAsync(cardGameKey, selectedCardId, true).ConfigureAwait(false);
+
+                // 4) Refresh the grid results with the same filter (back to UI)
+                var searchText = tbSearchBar.Text ?? string.Empty;
+                var refreshed = await _inventoryService.SearchInventoryAsync(cardGameKey, searchText).ConfigureAwait(false);
+
+                // Marshal UI updates
+                if (this.IsHandleCreated && this.InvokeRequired)
+                {
+                    this.Invoke(() =>
+                    {
+                        sfDataGrid_InvLookup.DataSource = refreshed ?? null;
+                        // Restore selection
+                        if (refreshed != null)
+                        {
+                            var idx = refreshed.ToList().FindIndex(x => x.CardId == selectedCardId);
+                            if (idx >= 0) sfDataGrid_InvLookup.SelectedIndex = idx;
+                        }
+
+                        // Update price textbox from refreshed model if available
+                        _selectedInventoryItem = refreshed?.FirstOrDefault(r => r.CardId == selectedCardId) ?? _selectedInventoryItem;
+                        if (_selectedInventoryItem != null)
+                        {
+                            tbPrice.DecimalValue = _selectedInventoryItem.MktPrice;
+                            tbPrice.Text = _selectedInventoryItem.MktPrice.ToString("C2", CultureInfo.GetCultureInfo("en-US"));
+                        }
+
+                        MessageBox.Show($"Price updated to {newPrice.ToString("C2", CultureInfo.GetCultureInfo("en-US"))}.",
+                            "Price Updated", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    });
+                }
+                else
+                {
+                    sfDataGrid_InvLookup.DataSource = refreshed ?? null;
+                    if (refreshed != null)
+                    {
+                        var idx = refreshed.ToList().FindIndex(x => x.CardId == selectedCardId);
+                        if (idx >= 0) sfDataGrid_InvLookup.SelectedIndex = idx;
+                    }
+
+                    _selectedInventoryItem = refreshed?.FirstOrDefault(r => r.CardId == selectedCardId) ?? _selectedInventoryItem;
+                    if (_selectedInventoryItem != null)
+                    {
+                        tbPrice.DecimalValue = _selectedInventoryItem.MktPrice;
+                        tbPrice.Text = _selectedInventoryItem.MktPrice.ToString("C2", CultureInfo.GetCultureInfo("en-US"));
+                    }
+
+                    MessageBox.Show($"Price updated to {newPrice.ToString("C2", CultureInfo.GetCultureInfo("en-US"))}.",
+                        "Price Updated", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+
+                return newPrice;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Operation failed: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return null;
+            }
+            finally
+            {
+                // ensure these run on UI thread
+                if (this.IsHandleCreated && this.InvokeRequired)
+                {
+                    this.Invoke(() =>
+                    {
+                        btnAddCt.Enabled = true;
+                        Cursor.Current = prevCursor;
+                    });
+                }
+                else
+                {
+                    btnAddCt.Enabled = true;
+                    Cursor.Current = prevCursor;
+                }
+            }
+
+            async Task _inventory_service_update_guard(string gameKey, int cardId, decimal price)
+            {
+                // Keep a guard to keep the main method tidy
+                await _inventoryService.UpdatePriceAsync(gameKey, cardId, price);
+            }
+        }
+
+        // Inline helper to set priceUp2Date for a given card row
+        private async Task UpdatePriceUp2DateInDbAsync(string cardGameKey, int cardId, bool up2Date)
+        {
+            if (!_uiCardGameToTable.TryGetValue(cardGameKey, out var tableName))
+                throw new ArgumentException("Invalid card game key", nameof(cardGameKey));
+
+            var settingsStore = new JsonSettingsStore(AppPaths.SettingsPath);
+            var appSettings = settingsStore.Load();
+            var connectionFactory = new SqlConnectionFactory(appSettings);
+
+            var password = await Session.PasswordProvider.GetPasswordAsync().ConfigureAwait(false);
+            using var conn = connectionFactory.CreateForCurrentUser(password);
+            password = string.Empty;
+
+            await conn.OpenAsync().ConfigureAwait(false);
+
+            var sql = $@"UPDATE {tableName} SET priceUp2Date = @up2 WHERE cardId = @cardId;";
+            using var cmd = new SqlCommand(sql, conn);
+            cmd.Parameters.Add("@up2", SqlDbType.Bit).Value = up2Date;
+            cmd.Parameters.Add("@cardId", SqlDbType.Int).Value = cardId;
+
+            await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+        }
+
+        private async void btnFinalizeSale_Click(object sender, EventArgs e)
+        {
+            if (_cartBinding.Count == 0)
+            {
+                MessageBox.Show("Cart is empty. Add items before finalizing.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var settingsStore = new JsonSettingsStore(AppPaths.SettingsPath);
+            var appSettings = settingsStore.Load();
+            var connectionFactory = new SqlConnectionFactory(appSettings);
+            var workflow = new SaleWorkflowService(connectionFactory, Session.PasswordProvider.GetPasswordAsync);
+
+            var currentUser = new DetermineCurrentUser();
+            var station = new DetermineStation();
+            int employeeIdInt = currentUser.employeeId();
+            int registerIdInt = station.registerId();
+
+            btnFinalizeSale.Enabled = false;
+            var prevCursor = Cursor.Current;
+            Cursor.Current = Cursors.WaitCursor;
+
+            try
+            {
+                // Determine whether we should create a new sale row or reuse an existing reserved one.
+                int saleId;
+                var providedSaleId = _reservedSaleId;
+
+                if (providedSaleId.HasValue)
+                {
+                    // Check if the reserved sale row already exists.
+                    // NOTE: do NOT use ConfigureAwait(false) here so continuation runs on UI thread.
+                    var existingStatus = await workflow.GetSaleOrderStatusAsync(providedSaleId.Value);
+
+                    if (existingStatus == null)
+                    {
+                        // No existing row -> create with providedSaleId
+                        saleId = await workflow.CreateSaleAsync(DateTimeOffset.Now,
+                            providedSaleId: providedSaleId,
+                            registerId: (byte)registerIdInt,
+                            employeeId: (byte?)employeeIdInt,
+                            orderStatus: OrderStatus.TakingOrder.ToString());
+
+                        // Keep _reservedSaleId set to the same value
+                        _reservedSaleId = saleId;
+                    }
+                    else
+                    {
+                        // Row exists -> reuse it. Ensure its status is TakingOrder so UI behavior is consistent.
+                        saleId = providedSaleId.Value;
+                        await workflow.UpdateSaleStatusAsync(saleId, OrderStatus.TakingOrder.ToString());
+                    }
+                }
+                else
+                {
+                    // No reserved id -> create new sale (identity)
+                    saleId = await workflow.CreateSaleAsync(DateTimeOffset.Now,
+                        providedSaleId: null,
+                        registerId: (byte)registerIdInt,
+                        employeeId: (byte?)employeeIdInt,
+                        orderStatus: OrderStatus.TakingOrder.ToString());
+
+                    _reservedSaleId = saleId;
+                }
+
+                // Show custom dialogs on the UI thread.
+                // Ensure we call the dialog from the UI thread (Invoke when necessary).
+                bool userReturned;
+                if (this.IsHandleCreated && this.InvokeRequired)
+                {
+                    userReturned = (bool)this.Invoke(new Func<bool>(() =>
+                        CustomConfirm.ShowTwoButton(this,
+                            "Gather Items",
+                            "Items selected. Go to the back and obtain the items now.\n\nPress Return to go back and edit the order, or Next to continue to processing.",
+                            "Return",
+                            "Next")));
+                }
+                else
+                {
+                    userReturned = CustomConfirm.ShowTwoButton(this,
+                        "Gather Items",
+                        "Items selected. Go to the back and obtain the items now.\n\nPress Return to go back and edit the order, or Next to continue to processing.",
+                        "Return",
+                        "Next");
+                }
+
+                if (userReturned)
+                {
+                    // Keep order in TakingOrder so user may edit later
+                    await workflow.UpdateSaleStatusAsync(saleId, OrderStatus.TakingOrder.ToString());
+
+                    // Notify and return (marshal to UI thread if needed)
+                    if (this.IsHandleCreated && this.InvokeRequired)
+                    {
+                        this.Invoke(() => MessageBox.Show("Order set back to 'TakingOrder'. You may modify the cart.", "Returned", MessageBoxButtons.OK, MessageBoxIcon.Information));
+                    }
+                    else
+                    {
+                        MessageBox.Show("Order set back to 'TakingOrder'. You may modify the cart.", "Returned", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+
+                    return;
+                }
+
+                // Next pressed -> set Processing
+                await workflow.UpdateSaleStatusAsync(saleId, OrderStatus.Processing.ToString());
+
+                // Second dialog: Return / Process (also run on UI thread)
+                bool returnToEdit;
+                if (this.IsHandleCreated && this.InvokeRequired)
+                {
+                    returnToEdit = (bool)this.Invoke(new Func<bool>(() =>
+                        CustomConfirm.ShowTwoButton(this,
+                            "Process Payment",
+                            "Begin processing payment now.\n\nPress Return to go back and edit the order, or Process to complete the sale.",
+                            "Return",
+                            "Process")));
+                }
+                else
+                {
+                    returnToEdit = CustomConfirm.ShowTwoButton(this,
+                        "Process Payment",
+                        "Begin processing payment now.\n\nPress Return to go back and edit the order, or Process to complete the sale.",
+                        "Return",
+                        "Process");
+                }
+
+                if (returnToEdit)
+                {
+                    await workflow.UpdateSaleStatusAsync(saleId, OrderStatus.TakingOrder.ToString());
+
+                    if (this.IsHandleCreated && this.InvokeRequired)
+                    {
+                        this.Invoke(() => MessageBox.Show("Order set back to 'TakingOrder'. You may modify the cart.", "Returned", MessageBoxButtons.OK, MessageBoxIcon.Information));
+                    }
+                    else
+                    {
+                        MessageBox.Show("Order set back to 'TakingOrder'. You may modify the cart.", "Returned", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    return;
+                }
+
+                // Process pressed -> set ReadyForPickup and save transaction lines
+                await workflow.UpdateSaleStatusAsync(saleId, OrderStatus.ReadyForPickup.ToString());
+
+                // Save transaction lines and update inventory
+                await workflow.SaveTransactionLinesAsync(saleId, _cartBinding.ToList());
+
+                // On success, set FinishedAndPaid
+                await workflow.UpdateSaleStatusAsync(saleId, OrderStatus.FinishedAndPaid.ToString());
+
+                if (this.IsHandleCreated && this.InvokeRequired)
+                {
+                    this.Invoke(() => MessageBox.Show("Sale completed and paid. Clearing cart.", "Finished", MessageBoxButtons.OK, MessageBoxIcon.Information));
+                }
+                else
+                {
+                    MessageBox.Show("Sale completed and paid. Clearing cart.", "Finished", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+
+                // Reset UI for next sale
+                _reservedSaleId = null;
+                ResetFormForNextSale();
+
+                // Reserve next sale id (await on UI thread)
+                await ReserveSaleIdAsync();
+            }
+            catch (Exception ex)
+            {
+                // Attempt to set status back to TakingOrder when errors occur (best-effort)
+                try
+                {
+                    if (_reservedSaleId.HasValue)
+                    {
+                        var settings = new JsonSettingsStore(AppPaths.SettingsPath).Load();
+                        var cf = new SqlConnectionFactory(settings);
+                        var wf = new SaleWorkflowService(cf, Session.PasswordProvider.GetPasswordAsync);
+                        // best-effort, ignore errors
+                        await wf.UpdateSaleStatusAsync(_reservedSaleId.Value, OrderStatus.TakingOrder.ToString());
+                    }
+                }
+                catch { }
+
+                if (this.IsHandleCreated && this.InvokeRequired)
+                {
+                    this.Invoke(() => MessageBox.Show($"Finalize failed: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error));
+                }
+                else
+                {
+                    MessageBox.Show($"Finalize failed: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            finally
+            {
+                // Ensure UI updates run on UI thread
+                if (this.IsHandleCreated && this.InvokeRequired)
+                {
+                    this.Invoke(() =>
+                    {
+                        btnFinalizeSale.Enabled = true;
+                        Cursor.Current = prevCursor;
+                    });
+                }
+                else
+                {
+                    btnFinalizeSale.Enabled = true;
+                    Cursor.Current = prevCursor;
+                }
+            }
         }
 
         private void ImageResizing()
@@ -324,79 +758,6 @@ namespace Card_Addiction_POS_System.Forms
             lblAmtInStock.Text = $"{item.AmtInStock}";
         }
 
-        // New: lookup selected item's price on TCGPlayer and update the model/UI
-        private async void LookupPrice(object? sender, EventArgs e)
-        {
-            if (_selectedInventoryItem == null)
-            {
-                MessageBox.Show("Please select an item first.", "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            var url = _selectedInventoryItem.MktPriceUrl;
-            if (string.IsNullOrWhiteSpace(url))
-            {
-                MessageBox.Show("Selected item does not have a market price URL.", "No URL", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-
-            btnFinalizeSale.Enabled = false;
-            var previousCursor = Cursor.Current;
-            Cursor.Current = Cursors.WaitCursor;
-
-            try
-            {
-                // Run Selenium lookup on a background thread using a short-lived finder instance
-                var oldPrice = _selectedInventoryItem.MktPrice;
-                decimal newPrice = await Task.Run(() =>
-                {
-                    using var finder = new FindPrice_TCG();
-                    return finder.GetMarketPrice(url);
-                }).ConfigureAwait(false);
-
-                // Marshal back to UI thread to update UI
-                if (this.IsHandleCreated && this.InvokeRequired)
-                {
-                    this.Invoke(() =>
-                    {
-                        _selectedInventoryItem.MktPrice = newPrice;
-                        tbPrice.DecimalValue = newPrice;
-                        tbPrice.Text = newPrice.ToString("C2", CultureInfo.GetCultureInfo("en-US"));
-                        MessageBox.Show($"Price lookup succeeded.\n\nOld: {oldPrice.ToString("C2", CultureInfo.GetCultureInfo("en-US"))}\nNew: {newPrice.ToString("C2", CultureInfo.GetCultureInfo("en-US"))}",
-                            "Price Updated", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    });
-                }
-                else
-                {
-                    _selectedInventoryItem.MktPrice = newPrice;
-                    tbPrice.DecimalValue = newPrice;
-                    tbPrice.Text = newPrice.ToString("C2", CultureInfo.GetCultureInfo("en-US"));
-                    MessageBox.Show($"Price lookup succeeded.\n\nOld: {oldPrice.ToString("C2", CultureInfo.GetCultureInfo("en-US"))}\nNew: {newPrice.ToString("C2", CultureInfo.GetCultureInfo("en-US"))}",
-                        "Price Updated", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
-            }
-            catch (Exception ex)
-            {
-                // Show friendly error; real app may log details
-                if (this.IsHandleCreated && this.InvokeRequired)
-                {
-                    this.Invoke(() =>
-                    {
-                        MessageBox.Show($"Price lookup failed: {ex.Message}", "Lookup Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    });
-                }
-                else
-                {
-                    MessageBox.Show($"Price lookup failed: {ex.Message}", "Lookup Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-            }
-            finally
-            {
-                btnFinalizeSale.Enabled = true;
-                Cursor.Current = previousCursor;
-            }
-        }
-
         // Image
         private static readonly HttpClient httpClient = new HttpClient();
         private void imgCardUrl_Click(object sender, EventArgs e)
@@ -437,12 +798,7 @@ namespace Card_Addiction_POS_System.Forms
             }
         }
 
-        private void btnFinalizeSale_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        // Updated: Add-to-cart now looks up the price, persists it, refreshes the grid and restores selection.
+        // Updated: Add-to-cart now looks up the price only if priceUp2Date == false.
         private async void btnAddCt_Click(object sender, EventArgs e)
         {
             if (_selectedInventoryItem == null)
@@ -458,70 +814,68 @@ namespace Card_Addiction_POS_System.Forms
                 return;
             }
 
-            var url = _selectedInventoryItem.MktPriceUrl;
-            if (string.IsNullOrWhiteSpace(url))
+            decimal? lookedUpPrice = null;
+
+            // Only run the (slow) price scan if the data indicates the row is not up-to-date.
+            if (!_selectedInventoryItem.PriceUp2Date)
             {
-                MessageBox.Show("Selected item does not have a market price URL.", "No URL", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                // PriceLookupAndUpdate persists the new market price and refreshes the inventory grid.
+                lookedUpPrice = await PriceLookupAndUpdate();
+            }
+
+            // Use the numeric value from tbPrice as the agreed price (employee-entered).
+            // tbPrice.DecimalValue was kept in sync when PriceLookupAndUpdate ran or when selecting the item.
+            decimal agreedPrice = tbPrice.DecimalValue;
+
+            // TimeMktPrice should reflect the price as-of add-to-cart: prefer lookedUpPrice if present, else the model's MktPrice.
+            decimal timeMktPrice = lookedUpPrice ?? _selectedInventoryItem.MktPrice;
+
+            // Validate amount
+            int amtTraded;
+            try
+            {
+                amtTraded = Convert.ToInt32(tbAmtTraded.IntegerValue);
+                if (amtTraded <= 0)
+                {
+                    MessageBox.Show("Please enter a positive amount.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+            }
+            catch
+            {
+                MessageBox.Show("Invalid amount entered.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            // Preserve identity of selected item to re-select after refresh
-            var selectedCardId = _selectedInventoryItem.CardId;
-
-            btnAddCt.Enabled = false;
-            var prevCursor = Cursor.Current;
-            Cursor.Current = Cursors.WaitCursor;
-
-            try
+            // Map cardGameKey to numeric id (1=Yugioh, 2=Magic, 3=Pokemon) - keep in sync with other parts of the app.
+            int cardGameId = cardGameKey switch
             {
-                // 1) Lookup new price on background thread
-                decimal newPrice = await Task.Run(() =>
-                {
-                    using var finder = new FindPrice_TCG();
-                    return finder.GetMarketPrice(url);
-                });
+                "Yugioh" => 1,
+                "Magic" => 2,
+                "Pokemon" => 3,
+                _ => 0
+            };
 
-                // 2) Persist to database
-                await _inventoryService.UpdatePriceAsync(cardGameKey, selectedCardId, newPrice);
-
-                // 3) Refresh the grid results with the same filter
-                var searchText = tbSearchBar.Text ?? string.Empty;
-                var refreshed = await _inventoryService.SearchInventoryAsync(cardGameKey, searchText);
-
-                // Bind refreshed results (we are on UI thread here)
-                sfDataGrid_InvLookup.DataSource = refreshed ?? null;
-
-                // 4) Restore selection by CardId
-                if (refreshed != null)
-                {
-                    var idx = refreshed.ToList().FindIndex(x => x.CardId == selectedCardId);
-                    if (idx >= 0)
-                    {
-                        // SelectedIndex API available on SfDataGrid
-                        sfDataGrid_InvLookup.SelectedIndex = idx;
-                    }
-                }
-
-                // 5) Update UI and inform user
-                _selectedInventoryItem = refreshed?.FirstOrDefault(r => r.CardId == selectedCardId);
-                if (_selectedInventoryItem != null)
-                {
-                    tbPrice.DecimalValue = _selectedInventoryItem.MktPrice;
-                    tbPrice.Text = _selectedInventoryItem.MktPrice.ToString("C2", CultureInfo.GetCultureInfo("en-US"));
-                }
-
-                MessageBox.Show($"Price updated to {newPrice.ToString("C2", CultureInfo.GetCultureInfo("en-US"))}.",
-                    "Price Updated", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            catch (Exception ex)
+            var line = new TransactionLineItem
             {
-                MessageBox.Show($"Operation failed: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-            finally
-            {
-                btnAddCt.Enabled = true;
-                Cursor.Current = prevCursor;
-            }
+                CardGameId = cardGameId,
+                CardId = _selectedInventoryItem.CardId,
+                ConditionId = _selectedInventoryItem.ConditionId,
+                CardName = _selectedInventoryItem.CardName,
+                Rarity = _selectedInventoryItem.Rarity,
+                SetId = _selectedInventoryItem.SetId,
+                TimeMktPrice = timeMktPrice,
+                AgreedPrice = agreedPrice,
+                AmtTraded = amtTraded,
+                AmtInStock = _selectedInventoryItem.AmtInStock,
+                BuyOrSell = true // true = sold to customer (old app default)
+            };
+
+            // Add to cart UI
+            _cartBinding.Add(line);
+
+            // Make finalize button visible/enabled in the UI if needed
+            btnFinalizeSale.Visible = true;
         }
 
         private void headerControl1_Load(object sender, EventArgs e)

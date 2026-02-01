@@ -10,6 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Temp\OldProjectStuff\Old_AddToCartLogic.cs" />
     <Compile Remove="Temp\OldProjectStuff\Old_SelectionExample.cs" />
     <Compile Remove="Temp\OldProjectStuff\Old_UpdatePriceLogic.cs" />
   </ItemGroup>
@@ -19,6 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="Temp\OldProjectStuff\Old_AddToCartLogic.cs" />
     <None Include="Temp\OldProjectStuff\Old_SelectionExample.cs" />
     <None Include="Temp\OldProjectStuff\Old_UpdatePriceLogic.cs" />
   </ItemGroup>

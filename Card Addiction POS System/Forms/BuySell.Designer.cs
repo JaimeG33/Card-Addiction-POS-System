@@ -50,6 +50,7 @@
             tbSearchBar = new TextBox();
             btnSearch = new Button();
             sfDataGrid_InvLookup = new Syncfusion.WinForms.DataGrid.SfDataGrid();
+            sfDataGrid_Cart = new Syncfusion.WinForms.DataGrid.SfDataGrid();
             tableLayoutPanel1.SuspendLayout();
             tableLayoutPanel2.SuspendLayout();
             tLP_img.SuspendLayout();
@@ -60,6 +61,7 @@
             tableLayoutPanel3.SuspendLayout();
             flowLayoutPanel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)sfDataGrid_InvLookup).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)sfDataGrid_Cart).BeginInit();
             SuspendLayout();
             // 
             // headerControl1
@@ -93,6 +95,7 @@
             tableLayoutPanel2.ColumnCount = 1;
             tableLayoutPanel2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
             tableLayoutPanel2.Controls.Add(tLP_img, 0, 0);
+            tableLayoutPanel2.Controls.Add(sfDataGrid_Cart, 0, 1);
             tableLayoutPanel2.Dock = DockStyle.Fill;
             tableLayoutPanel2.Location = new Point(3, 3);
             tableLayoutPanel2.Name = "tableLayoutPanel2";
@@ -315,6 +318,24 @@
             sfDataGrid_InvLookup.CellClick += sfDataGrid_InvLookup_CellClick;
             sfDataGrid_InvLookup.Click += sfDataGrid_InvLookup_Click;
             // 
+            // sfDataGrid_Cart
+            // 
+            sfDataGrid_Cart.AccessibleName = "Table";
+            sfDataGrid_Cart.Dock = DockStyle.Fill;
+            sfDataGrid_Cart.Location = new Point(3, 263);
+            sfDataGrid_Cart.Name = "sfDataGrid_Cart";
+            sfDataGrid_Cart.Size = new Size(464, 255);
+            sfDataGrid_Cart.Style.BorderColor = Color.FromArgb(100, 100, 100);
+            sfDataGrid_Cart.Style.CheckBoxStyle.CheckedBackColor = Color.FromArgb(0, 120, 215);
+            sfDataGrid_Cart.Style.CheckBoxStyle.CheckedBorderColor = Color.FromArgb(0, 120, 215);
+            sfDataGrid_Cart.Style.CheckBoxStyle.IndeterminateBorderColor = Color.FromArgb(0, 120, 215);
+            sfDataGrid_Cart.Style.DragPreviewRowStyle.Font = new Font("Segoe UI", 9F);
+            sfDataGrid_Cart.Style.DragPreviewRowStyle.RowCountIndicatorBackColor = Color.FromArgb(0, 120, 215);
+            sfDataGrid_Cart.Style.DragPreviewRowStyle.RowCountIndicatorTextColor = Color.FromArgb(255, 255, 255);
+            sfDataGrid_Cart.Style.HyperlinkStyle.DefaultLinkColor = Color.FromArgb(0, 120, 215);
+            sfDataGrid_Cart.TabIndex = 1;
+            sfDataGrid_Cart.Text = "sfDataGrid1";
+            // 
             // BuySell
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -342,6 +363,7 @@
             flowLayoutPanel1.ResumeLayout(false);
             flowLayoutPanel1.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)sfDataGrid_InvLookup).EndInit();
+            ((System.ComponentModel.ISupportInitialize)sfDataGrid_Cart).EndInit();
             ResumeLayout(false);
         }
 
@@ -368,5 +390,6 @@
         private Button btnSearch;
         private Label lblAmtInStock;
         private Label lblAmt;
+        private Syncfusion.WinForms.DataGrid.SfDataGrid sfDataGrid_Cart;
     }
 }
