@@ -84,5 +84,27 @@ namespace Card_Addiction_POS_System.Forms
             inventoryForm.Show();
             this.Close();
         }
+
+        private void btnAdmin_Click(object sender, EventArgs e)
+        {
+            IsNavigating = true;
+
+            // Load saved server settings (AppSettings does NOT store SQL passwords)
+            var settingsStore = new JsonSettingsStore(AppPaths.SettingsPath);
+            var appSettings = settingsStore.Load();
+
+            // Create the SqlConnectionFactory using those settings (kept for consistency with other navigation flows)
+            var connectionFactory = new SqlConnectionFactory(appSettings);
+
+            // Admin form currently uses Session.PasswordProvider internally when it needs credentials,
+            // so we can instantiate it directly.
+            var adminForm = new Admin();
+
+            // Optional: cleanup hook when leaving Admin
+            adminForm.FormClosed += (s, args) => { /* optional cleanup when leaving Admin */ };
+
+            adminForm.Show();
+            this.Close();
+        }
     }
 }

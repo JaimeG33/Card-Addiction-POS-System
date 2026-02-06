@@ -37,6 +37,7 @@ namespace Card_Addiction_POS_System.Forms
             btnOrders = new Button();
             btnSale = new Button();
             btnInventoryMgmt = new Button();
+            btnAdmin = new Button();
             headerControl1 = new Card_Addiction_POS_System.LogIn.Controls.HeaderControl();
             tableLayoutPanel1.SuspendLayout();
             flowLayoutPanel1.SuspendLayout();
@@ -61,6 +62,7 @@ namespace Card_Addiction_POS_System.Forms
             flowLayoutPanel1.Controls.Add(btnOrders);
             flowLayoutPanel1.Controls.Add(btnSale);
             flowLayoutPanel1.Controls.Add(btnInventoryMgmt);
+            flowLayoutPanel1.Controls.Add(btnAdmin);
             flowLayoutPanel1.Dock = DockStyle.Fill;
             flowLayoutPanel1.Location = new Point(3, 3);
             flowLayoutPanel1.Name = "flowLayoutPanel1";
@@ -101,6 +103,18 @@ namespace Card_Addiction_POS_System.Forms
             btnInventoryMgmt.UseVisualStyleBackColor = false;
             btnInventoryMgmt.Click += btnInventoryMgmt_Click;
             // 
+            // btnAdmin
+            // 
+            btnAdmin.BackColor = Color.LightGray;
+            btnAdmin.Location = new Point(544, 10);
+            btnAdmin.Margin = new Padding(10);
+            btnAdmin.Name = "btnAdmin";
+            btnAdmin.Size = new Size(158, 54);
+            btnAdmin.TabIndex = 3;
+            btnAdmin.Text = "Admin";
+            btnAdmin.UseVisualStyleBackColor = false;
+            btnAdmin.Click += btnAdmin_Click;
+            // 
             // headerControl1
             // 
             headerControl1.BackColor = SystemColors.ActiveBorder;
@@ -138,5 +152,6 @@ namespace Card_Addiction_POS_System.Forms
         private Button btnOrders;
         private Button btnSale;
         private Button btnInventoryMgmt;
+        private Button btnAdmin;
     }
 }

@@ -119,6 +119,35 @@ namespace Card_Addiction_POS_System.Functions.Sales
         }
 
         /// <summary>
+        /// Update the employeeId on an existing sale row.
+        /// </summary>
+        public async Task UpdateSaleEmployeeAsync(int saleId, byte? employeeId)
+        {
+            const string updateSql = @"
+                UPDATE dbo.Sale
+                SET employeeId = @employeeId
+                WHERE saleId = @saleId;";
+
+            var password = await _getPassword_async_guard().ConfigureAwait(false);
+            using var conn = _connectionFactory.CreateForCurrentUser(password);
+            password = string.Empty;
+
+            await conn.OpenAsync().ConfigureAwait(false);
+
+            using var cmd = new SqlCommand(updateSql, conn);
+            if (employeeId.HasValue)
+                cmd.Parameters.Add("@employeeId", SqlDbType.TinyInt).Value = employeeId.Value;
+            else
+                cmd.Parameters.Add("@employeeId", SqlDbType.TinyInt).Value = DBNull.Value;
+
+            cmd.Parameters.Add("@saleId", SqlDbType.SmallInt).Value = saleId;
+
+            await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+            async Task<string> _getPassword_async_guard() => await _getPasswordAsync().ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Persist transaction lines and update inventory stock.
         /// - Inserts one row per TransactionLineItem into TransactionLine table.
         /// - Ensures each inserted row includes a transactionId (1..N) for the sale.

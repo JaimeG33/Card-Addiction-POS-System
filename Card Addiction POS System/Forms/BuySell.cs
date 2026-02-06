@@ -93,13 +93,31 @@ namespace Card_Addiction_POS_System.Forms
                 _saleIdDeterminer = new DetermineSaleId(connectionFactory, Session.PasswordProvider.GetPasswordAsync);
                 _reservedSaleId = await _saleIdDeterminer.ReserveNextSaleIdAsync();
 
-                // Update UI (we are on UI thread because we didn't ConfigureAwait(false) above)
-                lblSaleInfo.Text = $"Sale ID: {_reservedSaleId}";
+                // Update UI on UI thread
+                if (this.IsHandleCreated && this.InvokeRequired)
+                {
+                    this.Invoke(() => lblSaleInfo.Text = $"Sale ID: {_reservedSaleId}");
+                }
+                else
+                {
+                    lblSaleInfo.Text = $"Sale ID: {_reservedSaleId}";
+                }
             }
             catch (Exception ex)
             {
                 // Non-fatal: inform user and continue
-                MessageBox.Show($"Warning reserving sale id: {ex.Message}", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                if (this.IsHandleCreated && this.InvokeRequired)
+                {
+                    this.Invoke(() => MessageBox.Show($"Warning reserving sale id: {ex.Message}", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning));
+                    this.Invoke(() => lblSaleInfo.Text = "Sale ID: N/A");
+                }
+                else
+                {
+                    MessageBox.Show($"Warning reserving sale id: {ex.Message}", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    lblSaleInfo.Text = "Sale ID: N/A";
+                }
+
+                _reservedSaleId = null;
             }
         }
 
@@ -292,9 +310,10 @@ namespace Card_Addiction_POS_System.Forms
             var connectionFactory = new SqlConnectionFactory(appSettings);
             var workflow = new SaleWorkflowService(connectionFactory, Session.PasswordProvider.GetPasswordAsync);
 
-            var currentUser = new DetermineCurrentUser();
+            // Do not use the legacy placeholder employee id (1) as the default.
+            // Start with null so Sale row is not incorrectly attributed before PIN verification.
+            int? employeeIdInt = null;
             var station = new DetermineStation();
-            int employeeIdInt = currentUser.employeeId();
             int registerIdInt = station.registerId();
 
             btnFinalizeSale.Enabled = false;
@@ -319,7 +338,7 @@ namespace Card_Addiction_POS_System.Forms
                         saleId = await workflow.CreateSaleAsync(DateTimeOffset.Now,
                             providedSaleId: providedSaleId,
                             registerId: (byte)registerIdInt,
-                            employeeId: (byte?)employeeIdInt,
+                            employeeId: employeeIdInt.HasValue ? (byte?)employeeIdInt.Value : null,
                             orderStatus: OrderStatus.TakingOrder.ToString());
 
                         // Keep _reservedSaleId set to the same value
@@ -334,18 +353,13 @@ namespace Card_Addiction_POS_System.Forms
                 }
                 else
                 {
-                    // No reserved id -> create new sale (identity)
-                    saleId = await workflow.CreateSaleAsync(DateTimeOffset.Now,
-                        providedSaleId: null,
-                        registerId: (byte)registerIdInt,
-                        employeeId: (byte?)employeeIdInt,
-                        orderStatus: OrderStatus.TakingOrder.ToString());
-
-                    _reservedSaleId = saleId;
+                    // If your DB requires a saleId (not identity), we must have reserved one.
+                    // Guard here to avoid inserting a NULL saleId.
+                    MessageBox.Show("No reserved Sale ID available. Please retry (press Home then return to Sales if necessary).", "Missing Sale ID", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
                 }
 
                 // Show custom dialogs on the UI thread.
-                // Ensure we call the dialog from the UI thread (Invoke when necessary).
                 bool userReturned;
                 if (this.IsHandleCreated && this.InvokeRequired)
                 {
@@ -367,10 +381,8 @@ namespace Card_Addiction_POS_System.Forms
 
                 if (userReturned)
                 {
-                    // Keep order in TakingOrder so user may edit later
                     await workflow.UpdateSaleStatusAsync(saleId, OrderStatus.TakingOrder.ToString());
 
-                    // Notify and return (marshal to UI thread if needed)
                     if (this.IsHandleCreated && this.InvokeRequired)
                     {
                         this.Invoke(() => MessageBox.Show("Order set back to 'TakingOrder'. You may modify the cart.", "Returned", MessageBoxButtons.OK, MessageBoxIcon.Information));
@@ -385,6 +397,31 @@ namespace Card_Addiction_POS_System.Forms
 
                 // Next pressed -> set Processing
                 await workflow.UpdateSaleStatusAsync(saleId, OrderStatus.Processing.ToString());
+
+                // Prompt for employee PIN to determine which employee will be recorded as processing this payment.
+                var pinPrompter = new DetermineCurrentUser(connectionFactory, Session.PasswordProvider.GetPasswordAsync);
+                int? processEmployeeId = await pinPrompter.PromptAndVerifyEmployeePinAsync(this);
+                if (!processEmployeeId.HasValue)
+                {
+                    // Authentication cancelled/failed: set order back to TakingOrder and inform user.
+                    await workflow.UpdateSaleStatusAsync(saleId, OrderStatus.TakingOrder.ToString());
+                    if (this.IsHandleCreated && this.InvokeRequired)
+                    {
+                        this.Invoke(() => MessageBox.Show("PIN verification failed or cancelled. Returning to edit.", "Authentication", MessageBoxButtons.OK, MessageBoxIcon.Warning));
+                    }
+                    else
+                    {
+                        MessageBox.Show("PIN verification failed or cancelled. Returning to edit.", "Authentication", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    }
+
+                    return;
+                }
+
+                // Use this employee id for subsequent processing and persist it on the sale row immediately.
+                employeeIdInt = processEmployeeId.Value;
+
+                // IMPORTANT: do NOT ConfigureAwait(false) here — we need to continue on UI thread afterwards.
+                await workflow.UpdateSaleEmployeeAsync(saleId, (byte)employeeIdInt);
 
                 // Second dialog: Return / Process (also run on UI thread)
                 bool returnToEdit;
@@ -439,9 +476,15 @@ namespace Card_Addiction_POS_System.Forms
                     MessageBox.Show("Sale completed and paid. Clearing cart.", "Finished", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
 
-                // Reset UI for next sale
-                _reservedSaleId = null;
-                ResetFormForNextSale();
+                // Reset UI for next sale -> marshal to UI thread explicitly to be safe
+                if (this.IsHandleCreated && this.InvokeRequired)
+                {
+                    this.Invoke(() => ResetFormForNextSale());
+                }
+                else
+                {
+                    ResetFormForNextSale();
+                }
 
                 // Reserve next sale id (await on UI thread)
                 await ReserveSaleIdAsync();
