@@ -34,6 +34,7 @@
             tableLayoutPanel2 = new TableLayoutPanel();
             flowLayoutPanel1 = new FlowLayoutPanel();
             cbCardGame = new ComboBox();
+            selectCardGameControl1 = new Card_Addiction_POS_System.Forms.Controls.SelectCardGameControl();
             tbSearchBar = new TextBox();
             btnSearch = new Button();
             tableLayoutPanel3 = new TableLayoutPanel();
@@ -48,6 +49,7 @@
             lblMktPrice = new Label();
             label1 = new Label();
             sfDataGrid_InvLookup = new Syncfusion.WinForms.DataGrid.SfDataGrid();
+            btnAddInventory = new Button();
             tableLayoutPanel1.SuspendLayout();
             tableLayoutPanel2.SuspendLayout();
             flowLayoutPanel1.SuspendLayout();
@@ -101,6 +103,7 @@
             // flowLayoutPanel1
             // 
             flowLayoutPanel1.Controls.Add(cbCardGame);
+            flowLayoutPanel1.Controls.Add(selectCardGameControl1);
             flowLayoutPanel1.Controls.Add(tbSearchBar);
             flowLayoutPanel1.Controls.Add(btnSearch);
             flowLayoutPanel1.Dock = DockStyle.Fill;
@@ -118,12 +121,20 @@
             cbCardGame.Size = new Size(156, 23);
             cbCardGame.TabIndex = 3;
             // 
+            // selectCardGameControl1
+            // 
+            selectCardGameControl1.Location = new Point(165, 3);
+            selectCardGameControl1.Name = "selectCardGameControl1";
+            selectCardGameControl1.SelectedCardGameId = -1;
+            selectCardGameControl1.Size = new Size(173, 23);
+            selectCardGameControl1.TabIndex = 6;
+            // 
             // tbSearchBar
             // 
             tbSearchBar.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             tbSearchBar.Location = new Point(3, 32);
             tbSearchBar.Name = "tbSearchBar";
-            tbSearchBar.Size = new Size(632, 23);
+            tbSearchBar.Size = new Size(620, 23);
             tbSearchBar.TabIndex = 4;
             // 
             // btnSearch
@@ -276,12 +287,23 @@
             sfDataGrid_InvLookup.SelectionChanged += sfDataGrid_InvLookup_SelectionChanged;
             sfDataGrid_InvLookup.Click += sfDataGrid_InvLookup_Click;
             // 
+            // btnAddInventory
+            // 
+            btnAddInventory.Location = new Point(1057, 86);
+            btnAddInventory.Name = "btnAddInventory";
+            btnAddInventory.Size = new Size(132, 23);
+            btnAddInventory.TabIndex = 6;
+            btnAddInventory.Text = "Admin Controls";
+            btnAddInventory.UseVisualStyleBackColor = true;
+            btnAddInventory.Click += btnAddInventory_Click;
+            // 
             // InventoryMgmt
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1194, 641);
             Controls.Add(tableLayoutPanel1);
+            Controls.Add(btnAddInventory);
             Controls.Add(headerControl1);
             MinimumSize = new Size(1210, 680);
             Name = "InventoryMgmt";
@@ -326,5 +348,7 @@
         private Button btnUpdateAmt;
         private Button btnFetch;
         private Button button1;
+        private Button btnAddInventory;
+        private Controls.SelectCardGameControl selectCardGameControl1;
     }
 }

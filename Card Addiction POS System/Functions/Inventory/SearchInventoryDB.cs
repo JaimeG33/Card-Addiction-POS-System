@@ -14,7 +14,7 @@ using Card_Addiction_POS_System.Functions.Models;
 // -------------------------------------------------
 // Purpose:
 // - Encapsulates database access for inventory-related operations (search and price updates).
-/// - Provides an inner concrete `InventoryService` implementing the public `IInventoryService` interface.
+// - Provides an inner concrete `InventoryService` implementing the public `IInventoryService` interface.
 // - The implementation is careful about security (password obtained on-demand), SQL parameterization,
 //   and efficient data reading (cached ordinals).
 //
@@ -35,10 +35,10 @@ using Card_Addiction_POS_System.Functions.Models;
 // var inventoryService = new SearchInventoryDB.InventoryService(connectionFactory, getPasswordAsync);
 //
 // // Example: Search for cards (async call from an async-event handler)
-// IReadOnlyList<InventoryItem> items = await inventoryService.SearchInventoryAsync("Magic", "Black Lotus");
+// IReadOnlyList<InventoryItem> items = await inventoryService.SearchInventoryAsync(cardGameId: 1, searchText: "Black Lotus");
 //
 // // Example: Update price for a card
-// await inventoryService.UpdatePriceAsync("Magic", cardId: 12345, newPrice: 99.99m);
+// await inventoryService.UpdatePriceAsync(cardGameId: 1, cardId: 12345, newPrice: 99.99m);
 //
 // Notes:
 // - Always call these methods from async contexts to avoid blocking UI threads.
@@ -54,12 +54,14 @@ namespace Card_Addiction_POS_System.Functions.Inventory
     // by public types in other assemblies (e.g. the public BuySell constructor).
     public interface IInventoryService
     {
+        // NOTE: Changed to accept cardGameId (int). The table name is assembled from
+        // the canonical DatabaseName for the game (DatabaseName + "Inventory").
         Task<IReadOnlyList<InventoryItem>> SearchInventoryAsync(
-            string cardGameKey,
+            int cardGameId,
             string searchText);
 
-        // Persist a new market price for a specific card row.
-        Task UpdatePriceAsync(string cardGameKey, int cardId, decimal newPrice);
+        // Persist a new market price for a specific card row. Now accepts cardGameId.
+        Task UpdatePriceAsync(int cardGameId, int cardId, decimal newPrice);
     }
 
     internal class SearchInventoryDB
@@ -78,15 +80,6 @@ namespace Card_Addiction_POS_System.Functions.Inventory
             // Delegate used to obtain the current user's password securely at call time.
             // Using a Func<Task<string>> makes it easy to prompt the user or query a secure vault asynchronously.
             private readonly Func<Task<string>> _getPasswordAsync;
-
-            // Map logical card game names used by UI to physical table names in the DB.
-            // Centralizing this mapping here makes it easy to add new games or change table names later.
-            private static readonly Dictionary<string, string> _cardGameToTable = new()
-            {
-                ["Yugioh"] = "YugiohInventory",
-                ["Magic"] = "MagicInventory",
-                ["Pokemon"] = "PokemonInventory"
-            };
 
             /// <summary>
             /// Constructor
@@ -108,29 +101,28 @@ namespace Card_Addiction_POS_System.Functions.Inventory
             /// - Caches ordinals (GetOrdinal) once per reader which is faster and less error prone than using string-based access repeatedly.
             /// - Converts SQL types to CLR-friendly values and guards against DBNull where appropriate.
             /// 
-            /// Performance & security notes (reusable pattern):
-            /// - Obtain the minimal required permissions for the connection used by the factory.
-            /// - Clear password reference as soon as possible after creating connection to reduce in-memory exposure.
-            /// - Use CommandBehavior.CloseConnection combined with using on the reader to ensure the connection closes
-            ///   when the reader is disposed or finished.
-            /// - Caching ordinals is a small but effective optimization when reading many rows.
+            /// Behavior changes:
+            /// - Accepts a numeric cardGameId (instead of a string key).
+            /// - Resolves the card game's canonical DatabaseName via SelectedCardGameLogic.TryGetById and constructs
+            ///   the target table name as DatabaseName + "Inventory". Example: "Magic" -> "MagicInventory".
             /// </summary>
             public async Task<IReadOnlyList<InventoryItem>> SearchInventoryAsync(
-                string cardGameKey,
+                int cardGameId,
                 string searchText)
             {
-                if (!_cardGameToTable.TryGetValue(cardGameKey, out var tableName))
-                    throw new ArgumentException("Invalid card game selection.", nameof(cardGameKey));
+                // Resolve the game record from the central mapping
+                if (!SelectedCardGameLogic.TryGetById(cardGameId, out var game))
+                    throw new ArgumentException("Invalid card game selection.", nameof(cardGameId));
+
+                var tableName = string.Concat(game.DatabaseName, "Inventory");
 
                 // Base query uses a format placeholder for the table name; parameters are used for user input.
-                const string baseQuery =
-                    @"SELECT cardName, rarity, setId, mktPrice, conditionId, amtInStock, 
+                var baseQuery =
+                    $@"SELECT cardName, rarity, setId, mktPrice, conditionId, amtInStock, 
                      priceUp2Date, imageURL, mktPriceURL, cardId
-                    FROM {0}
+                    FROM {tableName}
                     WHERE cardName LIKE @cardName
                     ORDER BY cardName;";
-
-                var query = string.Format(baseQuery, tableName);
 
                 var results = new List<InventoryItem>();
 
@@ -139,14 +131,14 @@ namespace Card_Addiction_POS_System.Functions.Inventory
                 var password = await _getPasswordAsync().ConfigureAwait(false);
 
                 // Create connection for the current user using the password provided at runtime.
-                using var conn = _connectionFactory.CreateForCurrentUser(password);
+                using var conn = _connection_factory_create_for_current_user_guard(password);
 
                 // Optionally clear local password reference as soon as practical:
                 password = string.Empty;
 
                 await conn.OpenAsync().ConfigureAwait(false);
 
-                using var cmd = new SqlCommand(query, conn);
+                using var cmd = new SqlCommand(baseQuery, conn);
 
                 // Use explicit parameter type to avoid AddWithValue pitfalls
                 // (AddWithValue may infer types incorrectly in some cases, leading to suboptimal plans).
@@ -198,16 +190,14 @@ namespace Card_Addiction_POS_System.Functions.Inventory
             /// - Updates the mktPrice column for a specified card row in the game-specific table.
             /// - Uses parameterized SQL and a SqlParameter for decimal with explicit precision and scale to avoid
             ///   mismatches with server-side types (e.g. smallmoney).
-            /// - Obtains the password on-demand, opens a connection, executes the command, then disposes the connection.
-            /// 
-            /// Reusable pattern:
-            /// - Use explicit SqlParameter with SqlDbType and set Precision/Scale for decimal values.
-            /// - Always prefer parameterized queries over string concatenation to avoid SQL injection.
+            /// - Accepts cardGameId and resolves DatabaseName -> TableName as DatabaseName + "Inventory".
             /// </summary>
-            public async Task UpdatePriceAsync(string cardGameKey, int cardId, decimal newPrice)
+            public async Task UpdatePriceAsync(int cardGameId, int cardId, decimal newPrice)
             {
-                if (!_cardGameToTable.TryGetValue(cardGameKey, out var tableName))
-                    throw new ArgumentException("Invalid card game selection.", nameof(cardGameKey));
+                if (!SelectedCardGameLogic.TryGetById(cardGameId, out var game))
+                    throw new ArgumentException("Invalid card game selection.", nameof(cardGameId));
+
+                var tableName = string.Concat(game.DatabaseName, "Inventory");
 
                 // Use parameterized update to avoid SQL injection
                 var updateQuery = $@"UPDATE {tableName}
@@ -215,8 +205,8 @@ namespace Card_Addiction_POS_System.Functions.Inventory
                                      WHERE cardId = @cardId;";
 
                 // Obtain password and open connection
-                var password = await _getPasswordAsync().ConfigureAwait(false);
-                using var conn = _connectionFactory.CreateForCurrentUser(password);
+                var password = await _getPassword_async_guard().ConfigureAwait(false);
+                using var conn = _connection_factory_create_for_current_user_guard(password);
                 password = string.Empty;
 
                 await conn.OpenAsync().ConfigureAwait(false);
@@ -234,6 +224,17 @@ namespace Card_Addiction_POS_System.Functions.Inventory
                 cmd.Parameters.Add("@cardId", SqlDbType.Int).Value = cardId;
 
                 await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+            }
+
+            // Small local helpers to keep the common factory call behaviors in one place.
+            private SqlConnection _connection_factory_create_for_current_user_guard(string password)
+            {
+                return _connectionFactory.CreateForCurrentUser(password);
+            }
+
+            private Task<string> _getPassword_async_guard()
+            {
+                return _getPasswordAsync();
             }
         }
     }

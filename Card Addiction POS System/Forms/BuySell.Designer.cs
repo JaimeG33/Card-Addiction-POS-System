@@ -44,13 +44,16 @@
             tbPrice = new Syncfusion.Windows.Forms.Tools.CurrencyTextBox();
             lblMktPrice = new Label();
             lblInStock = new Label();
+            tableLayoutPanel4 = new TableLayoutPanel();
+            sfDataGrid_Cart = new Syncfusion.WinForms.DataGrid.SfDataGrid();
+            sfDataGrid_CartSummary = new Syncfusion.WinForms.DataGrid.SfDataGrid();
             tableLayoutPanel3 = new TableLayoutPanel();
             flowLayoutPanel1 = new FlowLayoutPanel();
             cbCardGame = new ComboBox();
             tbSearchBar = new TextBox();
             btnSearch = new Button();
             sfDataGrid_InvLookup = new Syncfusion.WinForms.DataGrid.SfDataGrid();
-            sfDataGrid_Cart = new Syncfusion.WinForms.DataGrid.SfDataGrid();
+            selectCardGameControl1 = new Card_Addiction_POS_System.Forms.Controls.SelectCardGameControl();
             tableLayoutPanel1.SuspendLayout();
             tableLayoutPanel2.SuspendLayout();
             tLP_img.SuspendLayout();
@@ -58,10 +61,12 @@
             panel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)tbAmtTraded).BeginInit();
             ((System.ComponentModel.ISupportInitialize)tbPrice).BeginInit();
+            tableLayoutPanel4.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)sfDataGrid_Cart).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)sfDataGrid_CartSummary).BeginInit();
             tableLayoutPanel3.SuspendLayout();
             flowLayoutPanel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)sfDataGrid_InvLookup).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)sfDataGrid_Cart).BeginInit();
             SuspendLayout();
             // 
             // headerControl1
@@ -95,13 +100,14 @@
             tableLayoutPanel2.ColumnCount = 1;
             tableLayoutPanel2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
             tableLayoutPanel2.Controls.Add(tLP_img, 0, 0);
-            tableLayoutPanel2.Controls.Add(sfDataGrid_Cart, 0, 1);
+            tableLayoutPanel2.Controls.Add(tableLayoutPanel4, 0, 1);
             tableLayoutPanel2.Dock = DockStyle.Fill;
             tableLayoutPanel2.Location = new Point(3, 3);
             tableLayoutPanel2.Name = "tableLayoutPanel2";
             tableLayoutPanel2.RowCount = 2;
             tableLayoutPanel2.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
             tableLayoutPanel2.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
+            tableLayoutPanel2.RowStyles.Add(new RowStyle(SizeType.Absolute, 20F));
             tableLayoutPanel2.Size = new Size(470, 521);
             tableLayoutPanel2.TabIndex = 0;
             // 
@@ -220,6 +226,7 @@
             tbPrice.Size = new Size(100, 23);
             tbPrice.TabIndex = 2;
             tbPrice.Text = "$1.00";
+            tbPrice.TextChanged += tbPrice_TextChanged;
             // 
             // lblMktPrice
             // 
@@ -240,6 +247,60 @@
             lblInStock.TabIndex = 0;
             lblInStock.Text = "Amount In Stock:";
             // 
+            // tableLayoutPanel4
+            // 
+            tableLayoutPanel4.ColumnCount = 1;
+            tableLayoutPanel4.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            tableLayoutPanel4.Controls.Add(sfDataGrid_Cart, 0, 0);
+            tableLayoutPanel4.Controls.Add(sfDataGrid_CartSummary, 0, 1);
+            tableLayoutPanel4.Dock = DockStyle.Fill;
+            tableLayoutPanel4.Location = new Point(3, 263);
+            tableLayoutPanel4.Name = "tableLayoutPanel4";
+            tableLayoutPanel4.RowCount = 2;
+            tableLayoutPanel4.RowStyles.Add(new RowStyle(SizeType.Percent, 65F));
+            tableLayoutPanel4.RowStyles.Add(new RowStyle(SizeType.Percent, 35F));
+            tableLayoutPanel4.Size = new Size(464, 255);
+            tableLayoutPanel4.TabIndex = 1;
+            // 
+            // sfDataGrid_Cart
+            // 
+            sfDataGrid_Cart.AccessibleName = "Table";
+            sfDataGrid_Cart.BackColor = Color.SkyBlue;
+            sfDataGrid_Cart.Dock = DockStyle.Fill;
+            sfDataGrid_Cart.Location = new Point(3, 3);
+            sfDataGrid_Cart.Name = "sfDataGrid_Cart";
+            sfDataGrid_Cart.Size = new Size(458, 159);
+            sfDataGrid_Cart.Style.BorderColor = Color.FromArgb(100, 100, 100);
+            sfDataGrid_Cart.Style.CheckBoxStyle.CheckedBackColor = Color.FromArgb(0, 120, 215);
+            sfDataGrid_Cart.Style.CheckBoxStyle.CheckedBorderColor = Color.FromArgb(0, 120, 215);
+            sfDataGrid_Cart.Style.CheckBoxStyle.IndeterminateBorderColor = Color.FromArgb(0, 120, 215);
+            sfDataGrid_Cart.Style.DragPreviewRowStyle.Font = new Font("Segoe UI", 9F);
+            sfDataGrid_Cart.Style.DragPreviewRowStyle.RowCountIndicatorBackColor = Color.FromArgb(0, 120, 215);
+            sfDataGrid_Cart.Style.DragPreviewRowStyle.RowCountIndicatorTextColor = Color.FromArgb(255, 255, 255);
+            sfDataGrid_Cart.Style.HyperlinkStyle.DefaultLinkColor = Color.FromArgb(0, 120, 215);
+            sfDataGrid_Cart.TabIndex = 1;
+            sfDataGrid_Cart.Text = "sfDataGrid1";
+            sfDataGrid_Cart.Click += sfDataGrid_Cart_Click;
+            // 
+            // sfDataGrid_CartSummary
+            // 
+            sfDataGrid_CartSummary.AccessibleName = "Table";
+            sfDataGrid_CartSummary.BackColor = Color.White;
+            sfDataGrid_CartSummary.Dock = DockStyle.Fill;
+            sfDataGrid_CartSummary.Location = new Point(3, 168);
+            sfDataGrid_CartSummary.Name = "sfDataGrid_CartSummary";
+            sfDataGrid_CartSummary.Size = new Size(458, 84);
+            sfDataGrid_CartSummary.Style.BorderColor = Color.FromArgb(100, 100, 100);
+            sfDataGrid_CartSummary.Style.CheckBoxStyle.CheckedBackColor = Color.FromArgb(0, 120, 215);
+            sfDataGrid_CartSummary.Style.CheckBoxStyle.CheckedBorderColor = Color.FromArgb(0, 120, 215);
+            sfDataGrid_CartSummary.Style.CheckBoxStyle.IndeterminateBorderColor = Color.FromArgb(0, 120, 215);
+            sfDataGrid_CartSummary.Style.DragPreviewRowStyle.Font = new Font("Segoe UI", 9F);
+            sfDataGrid_CartSummary.Style.DragPreviewRowStyle.RowCountIndicatorBackColor = Color.FromArgb(0, 120, 215);
+            sfDataGrid_CartSummary.Style.DragPreviewRowStyle.RowCountIndicatorTextColor = Color.FromArgb(255, 255, 255);
+            sfDataGrid_CartSummary.Style.HyperlinkStyle.DefaultLinkColor = Color.FromArgb(0, 120, 215);
+            sfDataGrid_CartSummary.TabIndex = 2;
+            sfDataGrid_CartSummary.Text = "Cart Summary";
+            // 
             // tableLayoutPanel3
             // 
             tableLayoutPanel3.ColumnCount = 1;
@@ -258,6 +319,7 @@
             // flowLayoutPanel1
             // 
             flowLayoutPanel1.Controls.Add(cbCardGame);
+            flowLayoutPanel1.Controls.Add(selectCardGameControl1);
             flowLayoutPanel1.Controls.Add(tbSearchBar);
             flowLayoutPanel1.Controls.Add(btnSearch);
             flowLayoutPanel1.Dock = DockStyle.Fill;
@@ -274,11 +336,12 @@
             cbCardGame.Name = "cbCardGame";
             cbCardGame.Size = new Size(156, 23);
             cbCardGame.TabIndex = 0;
+            cbCardGame.SelectedIndexChanged += cbCardGame_SelectedIndexChanged;
             // 
             // tbSearchBar
             // 
             tbSearchBar.Dock = DockStyle.Bottom;
-            tbSearchBar.Location = new Point(3, 32);
+            tbSearchBar.Location = new Point(3, 35);
             tbSearchBar.Name = "tbSearchBar";
             tbSearchBar.Size = new Size(609, 23);
             tbSearchBar.TabIndex = 1;
@@ -287,7 +350,7 @@
             // 
             // btnSearch
             // 
-            btnSearch.Location = new Point(618, 32);
+            btnSearch.Location = new Point(618, 35);
             btnSearch.Name = "btnSearch";
             btnSearch.Size = new Size(75, 23);
             btnSearch.TabIndex = 2;
@@ -318,23 +381,13 @@
             sfDataGrid_InvLookup.CellClick += sfDataGrid_InvLookup_CellClick;
             sfDataGrid_InvLookup.Click += sfDataGrid_InvLookup_Click;
             // 
-            // sfDataGrid_Cart
+            // selectCardGameControl1
             // 
-            sfDataGrid_Cart.AccessibleName = "Table";
-            sfDataGrid_Cart.Dock = DockStyle.Fill;
-            sfDataGrid_Cart.Location = new Point(3, 263);
-            sfDataGrid_Cart.Name = "sfDataGrid_Cart";
-            sfDataGrid_Cart.Size = new Size(464, 255);
-            sfDataGrid_Cart.Style.BorderColor = Color.FromArgb(100, 100, 100);
-            sfDataGrid_Cart.Style.CheckBoxStyle.CheckedBackColor = Color.FromArgb(0, 120, 215);
-            sfDataGrid_Cart.Style.CheckBoxStyle.CheckedBorderColor = Color.FromArgb(0, 120, 215);
-            sfDataGrid_Cart.Style.CheckBoxStyle.IndeterminateBorderColor = Color.FromArgb(0, 120, 215);
-            sfDataGrid_Cart.Style.DragPreviewRowStyle.Font = new Font("Segoe UI", 9F);
-            sfDataGrid_Cart.Style.DragPreviewRowStyle.RowCountIndicatorBackColor = Color.FromArgb(0, 120, 215);
-            sfDataGrid_Cart.Style.DragPreviewRowStyle.RowCountIndicatorTextColor = Color.FromArgb(255, 255, 255);
-            sfDataGrid_Cart.Style.HyperlinkStyle.DefaultLinkColor = Color.FromArgb(0, 120, 215);
-            sfDataGrid_Cart.TabIndex = 1;
-            sfDataGrid_Cart.Text = "sfDataGrid1";
+            selectCardGameControl1.Location = new Point(165, 3);
+            selectCardGameControl1.Name = "selectCardGameControl1";
+            selectCardGameControl1.SelectedCardGameId = -1;
+            selectCardGameControl1.Size = new Size(173, 26);
+            selectCardGameControl1.TabIndex = 3;
             // 
             // BuySell
             // 
@@ -359,11 +412,13 @@
             panel1.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)tbAmtTraded).EndInit();
             ((System.ComponentModel.ISupportInitialize)tbPrice).EndInit();
+            tableLayoutPanel4.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)sfDataGrid_Cart).EndInit();
+            ((System.ComponentModel.ISupportInitialize)sfDataGrid_CartSummary).EndInit();
             tableLayoutPanel3.ResumeLayout(false);
             flowLayoutPanel1.ResumeLayout(false);
             flowLayoutPanel1.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)sfDataGrid_InvLookup).EndInit();
-            ((System.ComponentModel.ISupportInitialize)sfDataGrid_Cart).EndInit();
             ResumeLayout(false);
         }
 
@@ -391,5 +446,8 @@
         private Label lblAmtInStock;
         private Label lblAmt;
         private Syncfusion.WinForms.DataGrid.SfDataGrid sfDataGrid_Cart;
+        private TableLayoutPanel tableLayoutPanel4;
+        private Syncfusion.WinForms.DataGrid.SfDataGrid sfDataGrid_CartSummary;
+        private Controls.SelectCardGameControl selectCardGameControl1;
     }
 }

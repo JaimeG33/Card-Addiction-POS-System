@@ -148,7 +148,7 @@ namespace Card_Addiction_POS_System.Forms
             ["Pokemon"] = "PokemonInventory"
         };
 
-        // Price lookup method — updated to also mark priceUp2Date and refresh grid
+        // Price lookup method — updated to use SelectCardGameControl numeric id and database name.
         private async Task<decimal?> PriceLookupAndUpdate()
         {
             if (_selectedInventoryItem == null)
@@ -157,12 +157,15 @@ namespace Card_Addiction_POS_System.Forms
                 return null;
             }
 
-            var cardGameKey = cbCardGame.SelectedItem as string ?? cbCardGame.Text;
-            if (string.IsNullOrWhiteSpace(cardGameKey))
+            // Read typed selection from the new user control.
+            var selectedGame = selectCardGameControl1.SelectedGame;
+            if (selectedGame == null)
             {
                 MessageBox.Show("Please select a card game.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return null;
             }
+
+            var cardGameId = selectedGame.CardGameId;
 
             var url = _selectedInventoryItem.MktPriceUrl;
             if (string.IsNullOrWhiteSpace(url))
@@ -186,30 +189,28 @@ namespace Card_Addiction_POS_System.Forms
                     return finder.GetMarketPrice(url);
                 }).ConfigureAwait(false);
 
-                // 2) Persist price to DB via inventory service
-                await _inventory_service_update_guard(cardGameKey, selectedCardId, newPrice).ConfigureAwait(false);
+                // 2) Persist price to DB via inventory service (now accepts cardGameId)
+                await _inventory_service_update_guard(cardGameId, selectedCardId, newPrice).ConfigureAwait(false);
 
-                // 3) Mark the row as up-to-date in DB (priceUp2Date = 1) using a small inline helper.
-                await UpdatePriceUp2DateInDbAsync(cardGameKey, selectedCardId, true).ConfigureAwait(false);
+                // 3) Mark the row as up-to-date in DB using cardGameId
+                await UpdatePriceUp2DateInDbAsync(cardGameId, selectedCardId, true).ConfigureAwait(false);
 
                 // 4) Refresh the grid results with the same filter (back to UI)
                 var searchText = tbSearchBar.Text ?? string.Empty;
-                var refreshed = await _inventoryService.SearchInventoryAsync(cardGameKey, searchText).ConfigureAwait(false);
+                var refreshed = await _inventoryService.SearchInventoryAsync(cardGameId, searchText).ConfigureAwait(false);
 
-                // Marshal UI updates
+                // Marshal UI updates (unchanged logic)
                 if (this.IsHandleCreated && this.InvokeRequired)
                 {
                     this.Invoke(() =>
                     {
                         sfDataGrid_InvLookup.DataSource = refreshed ?? null;
-                        // Restore selection
                         if (refreshed != null)
                         {
                             var idx = refreshed.ToList().FindIndex(x => x.CardId == selectedCardId);
                             if (idx >= 0) sfDataGrid_InvLookup.SelectedIndex = idx;
                         }
 
-                        // Update price textbox from refreshed model if available
                         _selectedInventoryItem = refreshed?.FirstOrDefault(r => r.CardId == selectedCardId) ?? _selectedInventoryItem;
                         if (_selectedInventoryItem != null)
                         {
@@ -250,7 +251,6 @@ namespace Card_Addiction_POS_System.Forms
             }
             finally
             {
-                // ensure these run on UI thread
                 if (this.IsHandleCreated && this.InvokeRequired)
                 {
                     this.Invoke(() =>
@@ -266,18 +266,21 @@ namespace Card_Addiction_POS_System.Forms
                 }
             }
 
-            async Task _inventory_service_update_guard(string gameKey, int cardId, decimal price)
+            async Task _inventory_service_update_guard(int gameId, int cardId, decimal price)
             {
-                // Keep a guard to keep the main method tidy
-                await _inventoryService.UpdatePriceAsync(gameKey, cardId, price);
+                // Forward to inventory service (signature changed to accept int cardGameId)
+                await _inventoryService.UpdatePriceAsync(gameId, cardId, price);
             }
         }
 
-        // Inline helper to set priceUp2Date for a given card row
-        private async Task UpdatePriceUp2DateInDbAsync(string cardGameKey, int cardId, bool up2Date)
+        // Inline helper to set priceUp2Date for a given card row (now accepts cardGameId).
+        private async Task UpdatePriceUp2DateInDbAsync(int cardGameId, int cardId, bool up2Date)
         {
-            if (!_uiCardGameToTable.TryGetValue(cardGameKey, out var tableName))
-                throw new ArgumentException("Invalid card game key", nameof(cardGameKey));
+            // Resolve table name using central mapping (DatabaseName + "Inventory")
+            if (!SelectedCardGameLogic.TryGetById(cardGameId, out var game))
+                throw new ArgumentException("Invalid card game id", nameof(cardGameId));
+
+            var tableName = string.Concat(game.DatabaseName, "Inventory");
 
             var settingsStore = new JsonSettingsStore(AppPaths.SettingsPath);
             var appSettings = settingsStore.Load();
@@ -712,9 +715,16 @@ namespace Card_Addiction_POS_System.Forms
 
         private async void btnSearch_Click(object sender, EventArgs e)
         {
-            // Basic validation
-            var cardGameKey = cbCardGame.SelectedItem as string ?? cbCardGame.Text;
-            if (string.IsNullOrWhiteSpace(cardGameKey))
+            // Validate inventory service if this form was constructed without DI (designer)
+            if (_inventoryService == null)
+            {
+                MessageBox.Show("Inventory service is not initialized. Open Buy/Sell from the HomePage so the application can create a database service.", "Service Unavailable", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // Read numeric CardGameId from the new SelectCardGameControl
+            var cardGameId = selectCardGameControl1.SelectedCardGameId;
+            if (cardGameId < 0)
             {
                 MessageBox.Show("Please select a card game.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
@@ -722,17 +732,17 @@ namespace Card_Addiction_POS_System.Forms
 
             var searchText = tbSearchBar.Text ?? string.Empty;
 
-            // UI state (must run on UI thread)
+            // UI: disable search and show wait cursor
             btnSearch.Enabled = false;
             var previousCursor = Cursor.Current;
             Cursor.Current = Cursors.WaitCursor;
 
             try
             {
-                // DO NOT use ConfigureAwait(false) here — we need to come back to the UI thread
-                var results = await _inventoryService.SearchInventoryAsync(cardGameKey, searchText);
+                // Call the inventory service passing numeric cardGameId
+                var results = await _inventoryService.SearchInventoryAsync(cardGameId, searchText);
 
-                // Safe to update controls because we're back on the UI thread
+                // Bind results to grid on UI thread
                 sfDataGrid_InvLookup.DataSource = results ?? null;
             }
             catch (Exception ex)
@@ -850,8 +860,8 @@ namespace Card_Addiction_POS_System.Forms
                 return;
             }
 
-            var cardGameKey = cbCardGame.SelectedItem as string ?? cbCardGame.Text;
-            if (string.IsNullOrWhiteSpace(cardGameKey))
+            var selectedGame = selectCardGameControl1.SelectedGame;
+            if (selectedGame == null)
             {
                 MessageBox.Show("Please select a card game.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
@@ -859,21 +869,14 @@ namespace Card_Addiction_POS_System.Forms
 
             decimal? lookedUpPrice = null;
 
-            // Only run the (slow) price scan if the data indicates the row is not up-to-date.
             if (!_selectedInventoryItem.PriceUp2Date)
             {
-                // PriceLookupAndUpdate persists the new market price and refreshes the inventory grid.
                 lookedUpPrice = await PriceLookupAndUpdate();
             }
 
-            // Use the numeric value from tbPrice as the agreed price (employee-entered).
-            // tbPrice.DecimalValue was kept in sync when PriceLookupAndUpdate ran or when selecting the item.
             decimal agreedPrice = tbPrice.DecimalValue;
-
-            // TimeMktPrice should reflect the price as-of add-to-cart: prefer lookedUpPrice if present, else the model's MktPrice.
             decimal timeMktPrice = lookedUpPrice ?? _selectedInventoryItem.MktPrice;
 
-            // Validate amount
             int amtTraded;
             try
             {
@@ -890,14 +893,8 @@ namespace Card_Addiction_POS_System.Forms
                 return;
             }
 
-            // Map cardGameKey to numeric id (1=Yugioh, 2=Magic, 3=Pokemon) - keep in sync with other parts of the app.
-            int cardGameId = cardGameKey switch
-            {
-                "Yugioh" => 1,
-                "Magic" => 2,
-                "Pokemon" => 3,
-                _ => 0
-            };
+            // Use the numeric CardGameId from the control.
+            int cardGameId = selectedGame.CardGameId;
 
             var line = new TransactionLineItem
             {
@@ -928,7 +925,19 @@ namespace Card_Addiction_POS_System.Forms
         // Pricing
 
 
+        private void sfDataGrid_Cart_Click(object sender, EventArgs e)
+        {
 
+        }
 
+        private void tbPrice_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void cbCardGame_SelectedIndexChanged(object sender, EventArgs e)
+        {
+
+        }
     }
 }

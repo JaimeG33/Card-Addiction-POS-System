@@ -81,7 +81,7 @@ namespace Card_Addiction_POS_System.Forms
             }
         }
 
-        // Configure grid columns & behavior (same approach as in BuySell)
+        // Configure grid columns & behavior (same approach as BuySell)
         private void ConfigureInventoryGrid()
         {
             sfDataGrid_InvLookup.AutoGenerateColumns = false;
@@ -229,8 +229,9 @@ namespace Card_Addiction_POS_System.Forms
                 return;
             }
 
-            var cardGameKey = cbCardGame.SelectedItem as string ?? cbCardGame.Text;
-            if (string.IsNullOrWhiteSpace(cardGameKey))
+            // Read numeric CardGameId from the reusable SelectCardGameControl
+            var cardGameId = selectCardGameControl1.SelectedCardGameId;
+            if (cardGameId < 0)
             {
                 MessageBox.Show("Please select a card game.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
@@ -263,7 +264,7 @@ namespace Card_Addiction_POS_System.Forms
             {
                 // Keep the null-check in a separate method to keep the outer method tidy while satisfying analyzer.
                 if (_inventoryService == null) return null;
-                return await _inventoryService.SearchInventoryAsync(cardGameKey, searchText);
+                return await _inventoryService.SearchInventoryAsync(cardGameId, searchText);
             }
         }
 
@@ -299,7 +300,7 @@ namespace Card_Addiction_POS_System.Forms
         // Updated: fetch price using FindPrice_TCG, persist to DB, refresh grid and update UI
         private async void btnFetch_Click(object sender, EventArgs e)
         {
-            if (_inventoryService == null)
+            if (_inventory_service_unavailable_guard())
             {
                 MessageBox.Show("Inventory service is not initialized. Open Inventory from the HomePage so the application can create a database service.", "Service Unavailable", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
@@ -318,8 +319,9 @@ namespace Card_Addiction_POS_System.Forms
                 return;
             }
 
-            var cardGameKey = cbCardGame.SelectedItem as string ?? cbCardGame.Text;
-            if (string.IsNullOrWhiteSpace(cardGameKey))
+            // Use numeric CardGameId from the control
+            var cardGameId = selectCardGameControl1.SelectedCardGameId;
+            if (cardGameId < 0)
             {
                 MessageBox.Show("Please select a card game.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
@@ -341,12 +343,12 @@ namespace Card_Addiction_POS_System.Forms
                     return finder.GetMarketPrice(url);
                 });
 
-                // 2) Persist new price to database
-                await _inventoryService.UpdatePriceAsync(cardGameKey, selectedCardId, newPrice);
+                // 2) Persist new price to database (pass numeric cardGameId)
+                await _inventoryService.UpdatePriceAsync(cardGameId, selectedCardId, newPrice);
 
                 // 3) Refresh current search results (preserve filter)
                 var searchText = tbSearchBar.Text ?? string.Empty;
-                var refreshed = await _inventoryService.SearchInventoryAsync(cardGameKey, searchText);
+                var refreshed = await _inventoryService.SearchInventoryAsync(cardGameId, searchText);
 
                 // 4) Rebind grid and restore selection by CardId
                 sfDataGrid_InvLookup.DataSource = refreshed ?? null;
@@ -387,6 +389,8 @@ namespace Card_Addiction_POS_System.Forms
             }
 
             string _selected_inventory_item_url_guard() => _selectedInventoryItem?.MktPriceUrl ?? string.Empty;
+
+            bool _inventory_service_unavailable_guard() => _inventoryService == null;
         }
 
         // UPDATED: Update amtInStock using the helper class, then refresh the grid while preserving selection
@@ -404,8 +408,9 @@ namespace Card_Addiction_POS_System.Forms
                 return;
             }
 
-            var cardGameKey = cbCardGame.SelectedItem as string ?? cbCardGame.Text;
-            if (string.IsNullOrWhiteSpace(cardGameKey))
+            // Use numeric CardGameId from the control
+            var cardGameId = selectCardGameControl1.SelectedCardGameId;
+            if (cardGameId < 0)
             {
                 MessageBox.Show("Please select a card game.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
@@ -440,12 +445,12 @@ namespace Card_Addiction_POS_System.Forms
             try
             {
                 // 1) Persist new amount (await without ConfigureAwait so continuation returns to UI thread)
-                await updater.UpdateAmountAsync(cardGameKey, selectedCardId, newAmount);
+                await updater.UpdateAmountAsync(cardGameId, selectedCardId, newAmount);
 
                 // 2) Refresh the grid results using existing filter and restore selection position
                 //    (run on UI thread — no Invoke required because await returned to context)
                 var searchText = tbSearchBar.Text ?? string.Empty;
-                var refreshed = await _inventoryService.SearchInventoryAsync(cardGameKey, searchText);
+                var refreshed = await _inventoryService.SearchInventoryAsync(cardGameId, searchText);
 
                 sfDataGrid_InvLookup.DataSource = refreshed ?? null;
 
@@ -486,6 +491,33 @@ namespace Card_Addiction_POS_System.Forms
                     Cursor.Current = prevCursor;
                 }
             }
+        }
+
+        private void btnAddInventory_Click(object sender, EventArgs e)
+        {
+            // Follow the same navigation pattern used in HomePage:
+            // - Mark this form as navigating so FormClosed does not exit the app.
+            // - Create the app SqlConnectionFactory using stored AppSettings (keeps consistency with other navigation paths).
+            // - Open the AddInventory form and close this form.
+
+            IsNavigating = true;
+
+            // Load saved server settings (AppSettings does NOT store SQL passwords)
+            var settingsStore = new JsonSettingsStore(AppPaths.SettingsPath);
+            var appSettings = settingsStore.Load();
+
+            // Create the SqlConnectionFactory using those settings so future forms can use it if needed.
+            var connectionFactory = new SqlConnectionFactory(appSettings);
+
+            // AddInventory currently uses parameterless ctor; instantiate and show it.
+            var addInventoryForm = new AddInventory();
+
+            // Optional: attach any cleanup or handlers here. Forms launched from this flow commonly
+            // rely on Session.PasswordProvider for credentials when needed.
+            addInventoryForm.FormClosed += (s, args) => { /* optional cleanup when leaving AddInventory */ };
+
+            addInventoryForm.Show();
+            this.Close();
         }
     }
 }
