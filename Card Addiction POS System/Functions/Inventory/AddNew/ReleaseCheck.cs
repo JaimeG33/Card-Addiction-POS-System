@@ -123,9 +123,13 @@ namespace Card_Addiction_POS_System.Functions.Inventory.AddNew
         /// - Operates under a single connection/transaction for consistency.
         /// 
         /// Note: dateStarted is set to the server datetime (SYSUTCDATETIME()) on insert to satisfy NOT NULL constraints.
+        /// 
+        /// Change: TRUNCATE/DELETE is executed before starting the insert transaction (separate autocommit statement).
+        /// This avoids using a transaction object that can become "completed" by certain operations and then reused.
+        /// Returns: number of rows present in NewCardgameSetTemp for this cardGameId after processing.
         /// </summary>
         /// <param name="game">SelectedCardGameLogic describing the chosen game (id + DatabaseName).</param>
-        public async Task PopulateNewCardgameSetTempFromTcgCsvAsync(SelectedCardGameLogic game, CancellationToken ct = default)
+        public async Task<int> PopulateNewCardgameSetTempFromTcgCsvAsync(SelectedCardGameLogic game, CancellationToken ct = default)
         {
             if (game == null) throw new ArgumentNullException(nameof(game));
 
@@ -138,27 +142,53 @@ namespace Card_Addiction_POS_System.Functions.Inventory.AddNew
             // Keep only groups within threshold (or with no published date)
             var toInsert = allGroups.Where(g => !g.PublishedOn.HasValue || g.PublishedOn.Value <= maxAllowed).ToList();
 
-            if (toInsert.Count == 0)
-                return;
-
-            // 2) Open a DB connection for current user and begin a transaction
+            // 2) Open a DB connection for current user
             var password = await _getPasswordAsync().ConfigureAwait(false);
             using var conn = _connectionFactory.CreateForCurrentUser(password);
             password = string.Empty;
 
             await conn.OpenAsync(ct).ConfigureAwait(false);
 
-            using var tx = conn.BeginTransaction();
-
+            // Ensure the temp table is empty before we begin the insert transaction.
+            // Execute TRUNCATE/DELETE as an autocommit command (no SqlTransaction). This avoids leaving a transaction in an unusable state.
             try
             {
-                // 3) Insert each group into NewCardgameSetTemp
-                //    Use SYSUTCDATETIME() for dateStarted and dateUploaded so server provides the current datetime
+                try
+                {
+                    using var truncateCmd = new SqlCommand("TRUNCATE TABLE dbo.NewCardgameSetTemp;", conn);
+                    await truncateCmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+                }
+                catch (SqlException)
+                {
+                    // Fall back to DELETE if TRUNCATE is not permitted.
+                    using var deleteAllCmd = new SqlCommand("DELETE FROM dbo.NewCardgameSetTemp;", conn);
+                    await deleteAllCmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+                }
+            }
+            catch
+            {
+                // If clearing the temp table fails for any reason, rethrow so caller can show the error.
+                throw;
+            }
+
+            // If there's nothing to insert, we're done (table was cleared).
+            if (toInsert.Count == 0)
+            {
+                // count is zero
+                return 0;
+            }
+
+            // 3) Begin a transaction for the insert + subsequent cleanup steps
+            using var tx = conn.BeginTransaction();
+            try
+            {
+                // Insert each group into NewCardgameSetTemp
+                // NOTE: includeInBatch column is set to 1 (true) by default on insert
                 const string insertSql = @"
 INSERT INTO dbo.NewCardgameSetTemp
-    (setId, cardGameId, setName, setDesc, abbreviation, setDate, dateStarted, dateUploaded, approved, hasIssues, issueNotes)
+    (setId, cardGameId, setName, setDesc, abbreviation, setDate, dateStarted, dateUploaded, approved, hasIssues, issueNotes, includeInBatch)
 VALUES
-    (@setId, @cardGameId, @setName, @setDesc, @abbreviation, @setDate, SYSUTCDATETIME(), SYSUTCDATETIME(), 0, 0, NULL);";
+    (@setId, @cardGameId, @setName, @setDesc, @abbreviation, @setDate, SYSUTCDATETIME(), SYSUTCDATETIME(), 0, 0, NULL, 1);";
 
                 using var insertCmd = new SqlCommand(insertSql, conn, tx);
 
@@ -237,6 +267,15 @@ VALUES
                 try { tx.Rollback(); } catch { }
                 throw;
             }
+
+            // Count rows in temp for this game and return
+            const string countSql = @"SELECT COUNT(*) FROM dbo.NewCardgameSetTemp WHERE cardGameId = @cardGameId;";
+            using var countCmd = new SqlCommand(countSql, conn);
+            countCmd.Parameters.Add("@cardGameId", SqlDbType.Int).Value = game.CardGameId;
+
+            var countObj = await countCmd.ExecuteScalarAsync(ct).ConfigureAwait(false);
+            if (countObj == null || countObj == DBNull.Value) return 0;
+            return Convert.ToInt32(countObj);
         }
 
         /// <summary>
@@ -254,7 +293,7 @@ VALUES
             await conn.OpenAsync(ct).ConfigureAwait(false);
 
             const string sql = @"
-SELECT tempId, setId, cardGameId, setName, setDesc, abbreviation, setDate, dateStarted, dateUploaded, approved, hasIssues, issueNotes
+SELECT tempId, setId, cardGameId, setName, setDesc, abbreviation, setDate, dateStarted, dateUploaded, includeInBatch, approved, hasIssues, issueNotes
 FROM dbo.NewCardgameSetTemp
 WHERE cardGameId = @cardGameId
 ORDER BY setDate DESC, setName;";
@@ -273,6 +312,7 @@ ORDER BY setDate DESC, setName;";
             var ordSetDate = reader.GetOrdinal("setDate");
             var ordDateStarted = reader.GetOrdinal("dateStarted");
             var ordDateUploaded = reader.GetOrdinal("dateUploaded");
+            var ordIncludeInBatch = reader.GetOrdinal("includeInBatch");
             var ordApproved = reader.GetOrdinal("approved");
             var ordHasIssues = reader.GetOrdinal("hasIssues");
             var ordIssueNotes = reader.GetOrdinal("issueNotes");
@@ -290,6 +330,7 @@ ORDER BY setDate DESC, setName;";
                     SetDate = reader.IsDBNull(ordSetDate) ? (DateTime?)null : reader.GetDateTime(ordSetDate),
                     DateStarted = reader.IsDBNull(ordDateStarted) ? (DateTime?)null : reader.GetDateTime(ordDateStarted),
                     DateUploaded = reader.IsDBNull(ordDateUploaded) ? (DateTime?)null : reader.GetDateTime(ordDateUploaded),
+                    IncludeInBatch = !reader.IsDBNull(ordIncludeInBatch) && reader.GetBoolean(ordIncludeInBatch),
                     Approved = !reader.IsDBNull(ordApproved) && reader.GetBoolean(ordApproved),
                     HasIssues = !reader.IsDBNull(ordHasIssues) && reader.GetBoolean(ordHasIssues),
                     IssueNotes = reader.IsDBNull(ordIssueNotes) ? null : reader.GetString(ordIssueNotes)
@@ -342,6 +383,7 @@ ORDER BY setDate DESC, setName;";
             public DateTime? SetDate { get; init; }
             public DateTime? DateStarted { get; init; }
             public DateTime? DateUploaded { get; init; }
+            public bool IncludeInBatch { get; init; } // newly added
             public bool Approved { get; init; }
             public bool HasIssues { get; init; }
             public string? IssueNotes { get; init; }

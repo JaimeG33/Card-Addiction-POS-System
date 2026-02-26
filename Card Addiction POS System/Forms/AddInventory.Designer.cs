@@ -47,6 +47,8 @@
             integerTextBox_MBS = new Syncfusion.Windows.Forms.Tools.IntegerTextBox();
             label1 = new Label();
             selectCardGameControl1 = new Card_Addiction_POS_System.Forms.Controls.SelectCardGameControl();
+            label2 = new Label();
+            lblMaxBatchSize = new Label();
             tableLayoutPanel1.SuspendLayout();
             panel2.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)sfDataGrid_NewInv).BeginInit();
@@ -167,6 +169,7 @@
             // 
             // lblBatchNumber
             // 
+            lblBatchNumber.Anchor = AnchorStyles.Top;
             lblBatchNumber.AutoSize = true;
             lblBatchNumber.Font = new Font("Segoe UI", 8.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
             lblBatchNumber.Location = new Point(441, 32);
@@ -177,6 +180,7 @@
             // 
             // lblSetName
             // 
+            lblSetName.Anchor = AnchorStyles.Top;
             lblSetName.AutoSize = true;
             lblSetName.Font = new Font("Segoe UI", 15.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
             lblSetName.Location = new Point(424, 1);
@@ -219,9 +223,12 @@
             sfDataGrid_NewSets.Style.HyperlinkStyle.DefaultLinkColor = Color.FromArgb(0, 120, 215);
             sfDataGrid_NewSets.TabIndex = 2;
             sfDataGrid_NewSets.Text = "sfDataGrid1";
+            sfDataGrid_NewSets.CellCheckBoxClick += sfDataGrid_NewSets_CellCheckBoxClick;
             // 
             // panel3
             // 
+            panel3.Controls.Add(lblMaxBatchSize);
+            panel3.Controls.Add(label2);
             panel3.Controls.Add(button2);
             panel3.Controls.Add(btnScanItems);
             panel3.Controls.Add(btnFetchSets);
@@ -237,7 +244,7 @@
             // button2
             // 
             button2.Font = new Font("Segoe UI", 14.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            button2.Location = new Point(276, 43);
+            button2.Location = new Point(276, 48);
             button2.Name = "button2";
             button2.Size = new Size(123, 35);
             button2.TabIndex = 7;
@@ -247,7 +254,7 @@
             // btnScanItems
             // 
             btnScanItems.Font = new Font("Segoe UI", 14.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            btnScanItems.Location = new Point(147, 43);
+            btnScanItems.Location = new Point(147, 48);
             btnScanItems.Name = "btnScanItems";
             btnScanItems.Size = new Size(123, 35);
             btnScanItems.TabIndex = 6;
@@ -257,7 +264,7 @@
             // btnFetchSets
             // 
             btnFetchSets.Font = new Font("Segoe UI", 14.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            btnFetchSets.Location = new Point(12, 43);
+            btnFetchSets.Location = new Point(12, 48);
             btnFetchSets.Name = "btnFetchSets";
             btnFetchSets.Size = new Size(123, 35);
             btnFetchSets.TabIndex = 5;
@@ -270,21 +277,22 @@
             integerTextBox_MBS.AccessibilityEnabled = true;
             integerTextBox_MBS.BeforeTouchSize = new Size(32, 23);
             integerTextBox_MBS.IntegerValue = 50L;
-            integerTextBox_MBS.Location = new Point(282, 5);
+            integerTextBox_MBS.Location = new Point(306, 21);
             integerTextBox_MBS.Name = "integerTextBox_MBS";
             integerTextBox_MBS.Size = new Size(32, 23);
             integerTextBox_MBS.TabIndex = 4;
             integerTextBox_MBS.Text = "50";
+            integerTextBox_MBS.TextChanged += integerTextBox_MBS_TextChanged;
             // 
             // label1
             // 
             label1.AutoSize = true;
             label1.Font = new Font("Segoe UI", 12F, FontStyle.Regular, GraphicsUnit.Point, 0);
-            label1.Location = new Point(166, 4);
+            label1.Location = new Point(166, 21);
             label1.Name = "label1";
-            label1.Size = new Size(116, 21);
+            label1.Size = new Size(140, 21);
             label1.TabIndex = 3;
-            label1.Text = "Max Batch Size:";
+            label1.Text = "Current Batch Size:";
             // 
             // selectCardGameControl1
             // 
@@ -293,6 +301,24 @@
             selectCardGameControl1.SelectedCardGameId = -1;
             selectCardGameControl1.Size = new Size(158, 24);
             selectCardGameControl1.TabIndex = 2;
+            // 
+            // label2
+            // 
+            label2.AutoSize = true;
+            label2.Location = new Point(167, 6);
+            label2.Name = "label2";
+            label2.Size = new Size(88, 15);
+            label2.TabIndex = 8;
+            label2.Text = "Max Batch Size:";
+            // 
+            // lblMaxBatchSize
+            // 
+            lblMaxBatchSize.AutoSize = true;
+            lblMaxBatchSize.Location = new Point(261, 6);
+            lblMaxBatchSize.Name = "lblMaxBatchSize";
+            lblMaxBatchSize.Size = new Size(22, 15);
+            lblMaxBatchSize.TabIndex = 9;
+            lblMaxBatchSize.Text = "___";
             // 
             // AddInventory
             // 
@@ -344,5 +370,7 @@
         private Button btnFetchSets;
         private Button btnScanItems;
         private Button button2;
+        private Label lblMaxBatchSize;
+        private Label label2;
     }
 }
