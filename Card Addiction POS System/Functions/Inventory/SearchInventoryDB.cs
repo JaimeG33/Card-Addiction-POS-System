@@ -171,7 +171,7 @@ namespace Card_Addiction_POS_System.Functions.Inventory
                         // Use conditional checks for DBNull for each column that may contain nulls.
                         CardName = reader.IsDBNull(ordCardName) ? string.Empty : reader.GetString(ordCardName),
                         Rarity = reader.IsDBNull(ordRarity) ? string.Empty : reader.GetString(ordRarity),
-                        SetId = reader.IsDBNull(ordSetId) ? 0 : reader.GetInt16(ordSetId),
+                        SetId = reader.IsDBNull(ordSetId) ? 0 : reader.GetInt32(ordSetId),
                         MktPrice = reader.IsDBNull(ordMktPrice) ? 0m : reader.GetDecimal(ordMktPrice),
                         ConditionId = conditionId,
                         AmtInStock = amtInStock,

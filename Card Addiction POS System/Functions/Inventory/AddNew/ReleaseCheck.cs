@@ -556,5 +556,34 @@ ORDER BY tempId;";
             public bool HasIssues { get; init; }
             public string? IssueNotes { get; init; }
         }
+
+        /// <summary>
+        /// Deletes rows in NewCardgameSetTemp whose tempId does not appear as a batchPosition
+        /// in NewTempCardgameInventory for the specified cardGameId.
+        /// Note: does NOT renumber tempIds to keep batchPosition mappings intact.
+        /// </summary>
+        public async Task<int> DeleteTempSetsNotInInventoryAsync(int cardGameId, CancellationToken ct = default)
+        {
+            var password = await _getPasswordAsync().ConfigureAwait(false);
+            using var conn = _connectionFactory.CreateForCurrentUser(password);
+            password = string.Empty;
+
+            await conn.OpenAsync(ct).ConfigureAwait(false);
+
+            const string sql = @"
+DELETE FROM dbo.NewCardgameSetTemp
+WHERE cardGameId = @cardGameId
+  AND tempId NOT IN (
+        SELECT DISTINCT batchPosition
+        FROM dbo.NewTempCardgameInventory
+        WHERE cardGameId = @cardGameId
+    );";
+
+            using var cmd = new SqlCommand(sql, conn);
+            cmd.Parameters.Add("@cardGameId", SqlDbType.Int).Value = cardGameId;
+
+            var affected = await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+            return affected;
+        }
     }
 }

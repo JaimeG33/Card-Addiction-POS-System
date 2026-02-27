@@ -91,9 +91,9 @@ ORDER BY tempId;";
 
                     const string insertSql = @"
 INSERT INTO dbo.NewTempCardgameInventory
-    (batchPosition, cardGameId, setId, cardId, cardName, rarity, foil, imageURL, mktPriceURL, mktPrice, amtInStock, approved, needsReview, issueNotes)
+    (batchPosition, cardGameId, setId, cardId, cardName, abbreviation, rarity, foil, imageURL, mktPriceURL, mktPrice, amtInStock, approved, needsReview, issueNotes)
 VALUES
-    (@batchPosition, @cardGameId, @setId, @cardId, @cardName, @rarity, @foil, @imageURL, @mktPriceURL, @mktPrice, @amtInStock, @approved, @needsReview, @issueNotes);";
+    (@batchPosition, @cardGameId, @setId, @cardId, @cardName, @abbreviation, @rarity, @foil, @imageURL, @mktPriceURL, @mktPrice, @amtInStock, @approved, @needsReview, @issueNotes);";
 
                     using var insertCmd = new SqlCommand(insertSql, conn, tx);
                     insertCmd.Parameters.Add("@batchPosition", SqlDbType.Int);
@@ -101,6 +101,7 @@ VALUES
                     insertCmd.Parameters.Add("@setId", SqlDbType.Int);
                     insertCmd.Parameters.Add("@cardId", SqlDbType.Int);
                     insertCmd.Parameters.Add("@cardName", SqlDbType.NVarChar, 255);
+                    insertCmd.Parameters.Add("@abbreviation", SqlDbType.NVarChar, 255);
                     insertCmd.Parameters.Add("@rarity", SqlDbType.NVarChar, 100);
                     insertCmd.Parameters.Add("@foil", SqlDbType.NVarChar, 50);
                     insertCmd.Parameters.Add("@imageURL", SqlDbType.NVarChar, 500);
@@ -119,6 +120,7 @@ VALUES
                         insertCmd.Parameters["@setId"].Value = set.setId;
                         insertCmd.Parameters["@cardId"].Value = p.ProductId;
                         insertCmd.Parameters["@cardName"].Value = p.Name ?? string.Empty;
+                        insertCmd.Parameters["@abbreviation"].Value = (object?)GetNumber(p) ?? DBNull.Value;
                         insertCmd.Parameters["@rarity"].Value = (object?)GetRarity(p) ?? DBNull.Value;
                         insertCmd.Parameters["@foil"].Value = DBNull.Value; // Yugioh: leave null
                         insertCmd.Parameters["@imageURL"].Value = (object?)p.ImageUrl ?? DBNull.Value;
@@ -141,10 +143,16 @@ VALUES
                 throw;
             }
 
-            // 3) Return the rows just inserted for display
+            // Normalize sealed product rarity before returning
             var batchPositions = sets.Select(s => s.tempId).ToList();
-            return await LoadInventoryRowsAsync(conn, batchPositions, ct).ConfigureAwait(false);
+            await UpdateSealedRarityAsync(conn, cardGameId, batchPositions, ct).ConfigureAwait(false);
+
+             // 3) Return the rows just inserted for display
+             return await LoadInventoryRowsAsync(conn, batchPositions, ct).ConfigureAwait(false);
         }
+
+        public static IReadOnlyList<string> GetRequiredColumnsForValidation() =>
+            new[] { "cardId", "cardGameId", "cardName", "setId", "rarity" };
 
         private async Task<List<ProductResult>> FetchProductsAsync(int cardGameId, int setId, CancellationToken ct)
         {
@@ -174,6 +182,15 @@ VALUES
             return rarity?.Value;
         }
 
+        private static string? GetNumber(ProductResult p)
+        {
+            if (p.ExtendedData == null) return null;
+            var num = p.ExtendedData.FirstOrDefault(ed =>
+                ed.Name?.Equals("Number", StringComparison.OrdinalIgnoreCase) == true ||
+                ed.DisplayName?.Equals("Number", StringComparison.OrdinalIgnoreCase) == true);
+            return num?.Value;
+        }
+
         private static async Task<List<NewTempCardgameInventoryRow>> LoadInventoryRowsAsync(SqlConnection conn, List<int> batchPositions, CancellationToken ct)
         {
             var results = new List<NewTempCardgameInventoryRow>();
@@ -195,7 +212,7 @@ VALUES
             }
 
             cmd.CommandText = $@"
-SELECT tempId, batchPosition, cardGameId, setId, cardId, cardName, rarity, foil, imageURL, mktPriceURL, mktPrice, amtInStock, approved, needsReview, issueNotes, dateInserted
+SELECT tempId, batchPosition, cardGameId, setId, cardId, cardName, abbreviation, rarity, foil, imageURL, mktPriceURL, mktPrice, amtInStock, approved, needsReview, issueNotes, dateInserted
 FROM dbo.NewTempCardgameInventory
 WHERE batchPosition IN ({string.Join(",", paramNames)})
 ORDER BY batchPosition, tempId;";
@@ -210,21 +227,54 @@ ORDER BY batchPosition, tempId;";
                     CardGameId = reader.IsDBNull(2) ? 0 : reader.GetInt32(2),
                     SetId = reader.IsDBNull(3) ? 0 : reader.GetInt32(3),
                     CardId = reader.IsDBNull(4) ? 0 : reader.GetInt32(4),
+                    ConditionId = 0, // default since column not present
                     CardName = reader.IsDBNull(5) ? string.Empty : reader.GetString(5),
-                    Rarity = reader.IsDBNull(6) ? null : reader.GetString(6),
-                    Foil = reader.IsDBNull(7) ? null : reader.GetString(7),
-                    ImageUrl = reader.IsDBNull(8) ? null : reader.GetString(8),
-                    MktPriceUrl = reader.IsDBNull(9) ? null : reader.GetString(9),
-                    MktPrice = reader.IsDBNull(10) ? (decimal?)null : reader.GetDecimal(10),
-                    AmtInStock = reader.IsDBNull(11) ? (int?)null : reader.GetInt32(11),
-                    Approved = reader.IsDBNull(12) ? (bool?)null : reader.GetBoolean(12),
-                    NeedsReview = reader.IsDBNull(13) ? false : reader.GetBoolean(13),
-                    IssueNotes = reader.IsDBNull(14) ? null : reader.GetString(14),
-                    DateInserted = reader.IsDBNull(15) ? (DateTime?)null : reader.GetDateTime(15)
-                });
-            }
+                    Abbreviation = reader.IsDBNull(6) ? null : reader.GetString(6),
+                    Rarity = reader.IsDBNull(7) ? null : reader.GetString(7),
+                    Foil = reader.IsDBNull(8) ? null : reader.GetString(8),
+                    ImageUrl = reader.IsDBNull(9) ? null : reader.GetString(9),
+                    MktPriceUrl = reader.IsDBNull(10) ? null : reader.GetString(10),
+                    MktPrice = reader.IsDBNull(11) ? (decimal?)null : reader.GetDecimal(11),
+                    AmtInStock = reader.IsDBNull(12) ? (int?)null : reader.GetInt32(12),
+                    Approved = reader.IsDBNull(13) ? (bool?)null : reader.GetBoolean(13),
+                    NeedsReview = reader.IsDBNull(14) ? false : reader.GetBoolean(14),
+                    IssueNotes = reader.IsDBNull(15) ? null : reader.GetString(15),
+                    DateInserted = reader.IsDBNull(16) ? (DateTime?)null : reader.GetDateTime(16)
+                 });
+             }
 
             return results;
+        }
+
+        private static async Task UpdateSealedRarityAsync(SqlConnection conn, int cardGameId, List<int> batchPositions, CancellationToken ct)
+        {
+            if (batchPositions == null || batchPositions.Count == 0)
+            {
+                return;
+            }
+
+            var paramNames = new List<string>(batchPositions.Count);
+            using var cmd = new SqlCommand();
+            cmd.Connection = conn;
+
+            for (int i = 0; i < batchPositions.Count; i++)
+            {
+                var name = $"@bp{i}";
+                paramNames.Add(name);
+                cmd.Parameters.Add(name, SqlDbType.Int).Value = batchPositions[i];
+            }
+
+            cmd.Parameters.Add("@cardGameId", SqlDbType.Int).Value = cardGameId;
+
+            cmd.CommandText = $@"
+UPDATE dbo.NewTempCardgameInventory
+SET rarity = 'Sealed'
+WHERE cardGameId = @cardGameId
+  AND batchPosition IN ({string.Join(",", paramNames)})
+  AND (rarity IS NULL OR LTRIM(RTRIM(rarity)) = '')
+  AND LOWER(cardName) LIKE '%deck%' OR LOWER(cardName) LIKE '%pack%' OR LOWER(cardName) LIKE '%box%';";
+
+            await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
         }
 
         private sealed class TcgCsvProductsResponse
@@ -257,7 +307,9 @@ ORDER BY batchPosition, tempId;";
             public int CardGameId { get; init; }
             public int SetId { get; init; }
             public int CardId { get; init; }
-            public string CardName { get; init; } = string.Empty;
+            public int ConditionId { get; init; } = 0;   // default 0 since column not present
+             public string CardName { get; init; } = string.Empty;
+            public string? Abbreviation { get; init; }
             public string? Rarity { get; init; }
             public string? Foil { get; init; }
             public string? ImageUrl { get; init; }
@@ -269,5 +321,6 @@ ORDER BY batchPosition, tempId;";
             public string? IssueNotes { get; init; }
             public DateTime? DateInserted { get; init; }
         }
+        
     }
 }

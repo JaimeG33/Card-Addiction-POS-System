@@ -113,6 +113,8 @@
             sfDataGrid_NewInv.Style.HyperlinkStyle.DefaultLinkColor = Color.FromArgb(0, 120, 215);
             sfDataGrid_NewInv.TabIndex = 1;
             sfDataGrid_NewInv.Text = "sfDataGrid_NewInv";
+            sfDataGrid_NewInv.SelectionChanged += sfDataGrid_NewInv_SelectionChanged;
+            sfDataGrid_NewInv.CurrentCellEndEdit += sfDataGrid_NewInv_CurrentCellEndEdit;
             // 
             // tableLayoutPanel2
             // 
@@ -297,7 +299,7 @@
             // integerTextBox_MBS
             // 
             integerTextBox_MBS.AccessibilityEnabled = true;
-            integerTextBox_MBS.BeforeTouchSize = new Size(32, 23);
+            integerTextBox_MBS.BeforeTouchSize = new Size(29, 23);
             integerTextBox_MBS.ForeColor = SystemColors.WindowText;
             integerTextBox_MBS.IntegerValue = 0L;
             integerTextBox_MBS.Location = new Point(306, 21);
