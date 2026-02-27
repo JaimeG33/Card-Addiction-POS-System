@@ -33,7 +33,7 @@
             panel2 = new Panel();
             sfDataGrid_NewInv = new Syncfusion.WinForms.DataGrid.SfDataGrid();
             tableLayoutPanel2 = new TableLayoutPanel();
-            button1 = new Button();
+            btnPrev = new Button();
             btnNext = new Button();
             panel1 = new Panel();
             lblBatchNumber = new Label();
@@ -41,14 +41,14 @@
             tableLayoutPanel3 = new TableLayoutPanel();
             sfDataGrid_NewSets = new Syncfusion.WinForms.DataGrid.SfDataGrid();
             panel3 = new Panel();
+            lblMaxBatchSize = new Label();
+            label2 = new Label();
             button2 = new Button();
             btnScanItems = new Button();
             btnFetchSets = new Button();
             integerTextBox_MBS = new Syncfusion.Windows.Forms.Tools.IntegerTextBox();
             label1 = new Label();
             selectCardGameControl1 = new Card_Addiction_POS_System.Forms.Controls.SelectCardGameControl();
-            label2 = new Label();
-            lblMaxBatchSize = new Label();
             tableLayoutPanel1.SuspendLayout();
             panel2.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)sfDataGrid_NewInv).BeginInit();
@@ -122,7 +122,7 @@
             tableLayoutPanel2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 10F));
             tableLayoutPanel2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 80F));
             tableLayoutPanel2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 10F));
-            tableLayoutPanel2.Controls.Add(button1, 0, 0);
+            tableLayoutPanel2.Controls.Add(btnPrev, 0, 0);
             tableLayoutPanel2.Controls.Add(btnNext, 2, 0);
             tableLayoutPanel2.Controls.Add(panel1, 1, 0);
             tableLayoutPanel2.Dock = DockStyle.Top;
@@ -135,16 +135,17 @@
             tableLayoutPanel2.Size = new Size(1182, 60);
             tableLayoutPanel2.TabIndex = 0;
             // 
-            // button1
+            // btnPrev
             // 
-            button1.Dock = DockStyle.Fill;
-            button1.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            button1.Location = new Point(4, 4);
-            button1.Name = "button1";
-            button1.Size = new Size(111, 52);
-            button1.TabIndex = 1;
-            button1.Text = "Prev\r\n<<< ";
-            button1.UseVisualStyleBackColor = true;
+            btnPrev.Dock = DockStyle.Fill;
+            btnPrev.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            btnPrev.Location = new Point(4, 4);
+            btnPrev.Name = "btnPrev";
+            btnPrev.Size = new Size(111, 52);
+            btnPrev.TabIndex = 1;
+            btnPrev.Text = "Prev\r\n<<< ";
+            btnPrev.UseVisualStyleBackColor = true;
+            btnPrev.Click += btnPrev_Click;
             // 
             // btnNext
             // 
@@ -156,6 +157,7 @@
             btnNext.TabIndex = 0;
             btnNext.Text = "Next \r\n>>>";
             btnNext.UseVisualStyleBackColor = true;
+            btnNext.Click += btnNext_Click;
             // 
             // panel1
             // 
@@ -223,6 +225,7 @@
             sfDataGrid_NewSets.Style.HyperlinkStyle.DefaultLinkColor = Color.FromArgb(0, 120, 215);
             sfDataGrid_NewSets.TabIndex = 2;
             sfDataGrid_NewSets.Text = "sfDataGrid1";
+            sfDataGrid_NewSets.CellClick += sfDataGrid_NewSets_CellClick_1;
             sfDataGrid_NewSets.CellCheckBoxClick += sfDataGrid_NewSets_CellCheckBoxClick;
             // 
             // panel3
@@ -240,6 +243,24 @@
             panel3.Name = "panel3";
             panel3.Size = new Size(764, 145);
             panel3.TabIndex = 3;
+            // 
+            // lblMaxBatchSize
+            // 
+            lblMaxBatchSize.AutoSize = true;
+            lblMaxBatchSize.Location = new Point(261, 6);
+            lblMaxBatchSize.Name = "lblMaxBatchSize";
+            lblMaxBatchSize.Size = new Size(22, 15);
+            lblMaxBatchSize.TabIndex = 9;
+            lblMaxBatchSize.Text = "___";
+            // 
+            // label2
+            // 
+            label2.AutoSize = true;
+            label2.Location = new Point(167, 6);
+            label2.Name = "label2";
+            label2.Size = new Size(88, 15);
+            label2.TabIndex = 8;
+            label2.Text = "Max Batch Size:";
             // 
             // button2
             // 
@@ -260,6 +281,7 @@
             btnScanItems.TabIndex = 6;
             btnScanItems.Text = "Scan Items";
             btnScanItems.UseVisualStyleBackColor = true;
+            btnScanItems.Click += btnScanItems_Click;
             // 
             // btnFetchSets
             // 
@@ -276,12 +298,12 @@
             // 
             integerTextBox_MBS.AccessibilityEnabled = true;
             integerTextBox_MBS.BeforeTouchSize = new Size(32, 23);
-            integerTextBox_MBS.IntegerValue = 50L;
+            integerTextBox_MBS.ForeColor = SystemColors.WindowText;
+            integerTextBox_MBS.IntegerValue = 0L;
             integerTextBox_MBS.Location = new Point(306, 21);
             integerTextBox_MBS.Name = "integerTextBox_MBS";
             integerTextBox_MBS.Size = new Size(32, 23);
             integerTextBox_MBS.TabIndex = 4;
-            integerTextBox_MBS.Text = "50";
             integerTextBox_MBS.TextChanged += integerTextBox_MBS_TextChanged;
             // 
             // label1
@@ -301,24 +323,6 @@
             selectCardGameControl1.SelectedCardGameId = -1;
             selectCardGameControl1.Size = new Size(158, 24);
             selectCardGameControl1.TabIndex = 2;
-            // 
-            // label2
-            // 
-            label2.AutoSize = true;
-            label2.Location = new Point(167, 6);
-            label2.Name = "label2";
-            label2.Size = new Size(88, 15);
-            label2.TabIndex = 8;
-            label2.Text = "Max Batch Size:";
-            // 
-            // lblMaxBatchSize
-            // 
-            lblMaxBatchSize.AutoSize = true;
-            lblMaxBatchSize.Location = new Point(261, 6);
-            lblMaxBatchSize.Name = "lblMaxBatchSize";
-            lblMaxBatchSize.Size = new Size(22, 15);
-            lblMaxBatchSize.TabIndex = 9;
-            lblMaxBatchSize.Text = "___";
             // 
             // AddInventory
             // 
@@ -354,7 +358,7 @@
         private LogIn.Controls.HeaderControl headerControl1;
         private TableLayoutPanel tableLayoutPanel1;
         private TableLayoutPanel tableLayoutPanel2;
-        private Button button1;
+        private Button btnPrev;
         private Button btnNext;
         private Panel panel1;
         private Label lblSetName;

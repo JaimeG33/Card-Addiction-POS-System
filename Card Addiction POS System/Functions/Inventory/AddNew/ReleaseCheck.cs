@@ -127,6 +127,8 @@ namespace Card_Addiction_POS_System.Functions.Inventory.AddNew
         /// Change: TRUNCATE/DELETE is executed before starting the insert transaction (separate autocommit statement).
         /// This avoids using a transaction object that can become "completed" by certain operations and then reused.
         /// Returns: number of rows present in NewCardgameSetTemp for this cardGameId after processing.
+        /// 
+        /// TempId assignment: explicitly sets tempId starting from 1, ordered by setDate DESC then setName.
         /// </summary>
         /// <param name="game">SelectedCardGameLogic describing the chosen game (id + DatabaseName).</param>
         public async Task<int> PopulateNewCardgameSetTempFromTcgCsvAsync(SelectedCardGameLogic game, CancellationToken ct = default)
@@ -149,29 +151,27 @@ namespace Card_Addiction_POS_System.Functions.Inventory.AddNew
 
             await conn.OpenAsync(ct).ConfigureAwait(false);
 
-            // Ensure the temp table is empty before we begin the insert transaction.
-            // Execute TRUNCATE/DELETE as an autocommit command (no SqlTransaction). This avoids leaving a transaction in an unusable state.
+            // Ensure the temp tables are empty before we begin the insert transaction.
+            // Use DELETE (no TRUNCATE) to avoid requiring ALTER/CONTROL permissions.
             try
             {
-                try
+                using (var deleteSetsCmd = new SqlCommand("DELETE FROM dbo.NewCardgameSetTemp;", conn))
                 {
-                    using var truncateCmd = new SqlCommand("TRUNCATE TABLE dbo.NewCardgameSetTemp;", conn);
-                    await truncateCmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+                    await deleteSetsCmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
                 }
-                catch (SqlException)
+
+                using (var deleteInventoryCmd = new SqlCommand("DELETE FROM dbo.NewTempCardgameInventory;", conn))
                 {
-                    // Fall back to DELETE if TRUNCATE is not permitted.
-                    using var deleteAllCmd = new SqlCommand("DELETE FROM dbo.NewCardgameSetTemp;", conn);
-                    await deleteAllCmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+                    await deleteInventoryCmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
                 }
             }
             catch
             {
-                // If clearing the temp table fails for any reason, rethrow so caller can show the error.
+                // If clearing the temp tables fails for any reason, rethrow so caller can show the error.
                 throw;
             }
 
-            // If there's nothing to insert, we're done (table was cleared).
+            // If there's nothing to insert, we're done (tables were cleared).
             if (toInsert.Count == 0)
             {
                 // count is zero
@@ -182,16 +182,28 @@ namespace Card_Addiction_POS_System.Functions.Inventory.AddNew
             using var tx = conn.BeginTransaction();
             try
             {
-                // Insert each group into NewCardgameSetTemp
+                // Sort groups by setDate DESC, then setName (same order used for display)
+                var sortedGroups = toInsert.OrderByDescending(g => g.PublishedOn ?? DateTime.MinValue)
+                                           .ThenBy(g => g.Name ?? string.Empty)
+                                           .ToList();
+
+                // Enable IDENTITY_INSERT so we can set tempId explicitly
+                using (var enableIdentityCmd = new SqlCommand("SET IDENTITY_INSERT dbo.NewCardgameSetTemp ON;", conn, tx))
+                {
+                    await enableIdentityCmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+                }
+
+                // Insert each group into NewCardgameSetTemp with explicit tempId starting from 1
                 // NOTE: includeInBatch column is set to 1 (true) by default on insert
                 const string insertSql = @"
 INSERT INTO dbo.NewCardgameSetTemp
-    (setId, cardGameId, setName, setDesc, abbreviation, setDate, dateStarted, dateUploaded, approved, hasIssues, issueNotes, includeInBatch)
+    (tempId, setId, cardGameId, setName, setDesc, abbreviation, setDate, dateStarted, dateUploaded, approved, hasIssues, issueNotes, includeInBatch)
 VALUES
-    (@setId, @cardGameId, @setName, @setDesc, @abbreviation, @setDate, SYSUTCDATETIME(), SYSUTCDATETIME(), 0, 0, NULL, 1);";
+    (@tempId, @setId, @cardGameId, @setName, @setDesc, @abbreviation, @setDate, SYSUTCDATETIME(), SYSUTCDATETIME(), 0, 0, NULL, 1);";
 
                 using var insertCmd = new SqlCommand(insertSql, conn, tx);
 
+                insertCmd.Parameters.Add("@tempId", SqlDbType.Int);
                 insertCmd.Parameters.Add("@setId", SqlDbType.Int);
                 insertCmd.Parameters.Add("@cardGameId", SqlDbType.Int);
                 insertCmd.Parameters.Add("@setName", SqlDbType.NVarChar, 255);
@@ -199,8 +211,10 @@ VALUES
                 insertCmd.Parameters.Add("@abbreviation", SqlDbType.NVarChar, 50);
                 insertCmd.Parameters.Add("@setDate", SqlDbType.Date);
 
-                foreach (var g in toInsert)
+                int currentTempId = 1;
+                foreach (var g in sortedGroups)
                 {
+                    insertCmd.Parameters["@tempId"].Value = currentTempId;
                     insertCmd.Parameters["@setId"].Value = g.GroupId;
                     insertCmd.Parameters["@cardGameId"].Value = g.CategoryId;
                     insertCmd.Parameters["@setName"].Value = g.Name ?? string.Empty;
@@ -212,12 +226,19 @@ VALUES
                     try
                     {
                         await insertCmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+                        currentTempId++;
                     }
                     catch (SqlException ex) when (ex.Number == 2627 || ex.Number == 2601) // primary key / unique violation
                     {
-                        // row already present in temp; ignore and continue
+                        // row already present in temp; ignore and continue (don't increment tempId)
                         continue;
                     }
+                }
+
+                // Disable IDENTITY_INSERT after explicit insert
+                using (var disableIdentityCmd = new SqlCommand("SET IDENTITY_INSERT dbo.NewCardgameSetTemp OFF;", conn, tx))
+                {
+                    await disableIdentityCmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
                 }
 
                 // 4) Remove any temp rows that match existing sets in the selected game's Set table
@@ -258,6 +279,9 @@ VALUES
                         deleteCmd.Parameters["@setId"].Value = sId;
                         await deleteCmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
                     }
+
+                    // After deleting existing sets, renumber tempIds to be sequential starting from 1
+                    await RenumberTempIdsAsync(conn, tx, game.CardGameId, ct).ConfigureAwait(false);
                 }
 
                 tx.Commit();
@@ -279,6 +303,150 @@ VALUES
         }
 
         /// <summary>
+        /// Renumbers tempId values sequentially starting from 1 for the given cardGameId,
+        /// ordered by setDate DESC then setName. Rows with includeInBatch=0 are pushed to the end.
+        /// </summary>
+        private async Task RenumberTempIdsAsync(SqlConnection conn, SqlTransaction tx, int cardGameId, CancellationToken ct)
+        {
+            // Read all rows for this cardGameId, ordered by includeInBatch DESC (true first), then setDate DESC, then setName
+            const string readSql = @"
+SELECT tempId, setId, cardGameId, setName, setDesc, abbreviation, setDate, dateStarted, dateUploaded, includeInBatch, approved, hasIssues, issueNotes
+FROM dbo.NewCardgameSetTemp
+WHERE cardGameId = @cardGameId
+ORDER BY includeInBatch DESC, setDate DESC, setName;";
+
+            var rows = new List<(int oldTempId, int setId, int cardGameId, string setName, string? setDesc, string? abbreviation, DateTime? setDate, DateTime? dateStarted, DateTime? dateUploaded, bool includeInBatch, bool approved, bool hasIssues, string? issueNotes)>();
+
+            using (var readCmd = new SqlCommand(readSql, conn, tx))
+            {
+                readCmd.Parameters.Add("@cardGameId", SqlDbType.Int).Value = cardGameId;
+
+                using var reader = await readCmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
+                while (await reader.ReadAsync(ct).ConfigureAwait(false))
+                {
+                    rows.Add((
+                        reader.GetInt32(0),
+                        reader.GetInt32(1),
+                        reader.GetInt32(2),
+                        reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
+                        reader.IsDBNull(4) ? null : reader.GetString(4),
+                        reader.IsDBNull(5) ? null : reader.GetString(5),
+                        reader.IsDBNull(6) ? (DateTime?)null : reader.GetDateTime(6),
+                        reader.IsDBNull(7) ? (DateTime?)null : reader.GetDateTime(7),
+                        reader.IsDBNull(8) ? (DateTime?)null : reader.GetDateTime(8),
+                        !reader.IsDBNull(9) && reader.GetBoolean(9),
+                        !reader.IsDBNull(10) && reader.GetBoolean(10),
+                        !reader.IsDBNull(11) && reader.GetBoolean(11),
+                        reader.IsDBNull(12) ? null : reader.GetString(12)
+                    ));
+                }
+            }
+
+            if (rows.Count == 0) return;
+
+            // Delete all rows for this cardGameId
+            const string deleteSql = @"DELETE FROM dbo.NewCardgameSetTemp WHERE cardGameId = @cardGameId;";
+            using (var deleteCmd = new SqlCommand(deleteSql, conn, tx))
+            {
+                deleteCmd.Parameters.Add("@cardGameId", SqlDbType.Int).Value = cardGameId;
+                await deleteCmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+            }
+
+            // Enable IDENTITY_INSERT
+            using (var enableCmd = new SqlCommand("SET IDENTITY_INSERT dbo.NewCardgameSetTemp ON;", conn, tx))
+            {
+                await enableCmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+            }
+
+            // Re-insert with new sequential tempIds
+            const string insertSql = @"
+INSERT INTO dbo.NewCardgameSetTemp
+    (tempId, setId, cardGameId, setName, setDesc, abbreviation, setDate, dateStarted, dateUploaded, includeInBatch, approved, hasIssues, issueNotes)
+VALUES
+    (@tempId, @setId, @cardGameId, @setName, @setDesc, @abbreviation, @setDate, @dateStarted, @dateUploaded, @includeInBatch, @approved, @hasIssues, @issueNotes);";
+
+            using var insertCmd = new SqlCommand(insertSql, conn, tx);
+            insertCmd.Parameters.Add("@tempId", SqlDbType.Int);
+            insertCmd.Parameters.Add("@setId", SqlDbType.Int);
+            insertCmd.Parameters.Add("@cardGameId", SqlDbType.Int);
+            insertCmd.Parameters.Add("@setName", SqlDbType.NVarChar, 255);
+            insertCmd.Parameters.Add("@setDesc", SqlDbType.NVarChar, 255);
+            insertCmd.Parameters.Add("@abbreviation", SqlDbType.NVarChar, 50);
+            insertCmd.Parameters.Add("@setDate", SqlDbType.Date);
+            insertCmd.Parameters.Add("@dateStarted", SqlDbType.DateTime);
+            insertCmd.Parameters.Add("@dateUploaded", SqlDbType.DateTime);
+            insertCmd.Parameters.Add("@includeInBatch", SqlDbType.Bit);
+            insertCmd.Parameters.Add("@approved", SqlDbType.Bit);
+            insertCmd.Parameters.Add("@hasIssues", SqlDbType.Bit);
+            insertCmd.Parameters.Add("@issueNotes", SqlDbType.NVarChar, -1);
+
+            int newTempId = 1;
+            foreach (var row in rows)
+            {
+                insertCmd.Parameters["@tempId"].Value = newTempId;
+                insertCmd.Parameters["@setId"].Value = row.setId;
+                insertCmd.Parameters["@cardGameId"].Value = row.cardGameId;
+                insertCmd.Parameters["@setName"].Value = row.setName;
+                insertCmd.Parameters["@setDesc"].Value = (object?)row.setDesc ?? DBNull.Value;
+                insertCmd.Parameters["@abbreviation"].Value = (object?)row.abbreviation ?? DBNull.Value;
+                insertCmd.Parameters["@setDate"].Value = row.setDate.HasValue ? (object)row.setDate.Value : DBNull.Value;
+                insertCmd.Parameters["@dateStarted"].Value = row.dateStarted.HasValue ? (object)row.dateStarted.Value : DBNull.Value;
+                insertCmd.Parameters["@dateUploaded"].Value = row.dateUploaded.HasValue ? (object)row.dateUploaded.Value : DBNull.Value;
+                insertCmd.Parameters["@includeInBatch"].Value = row.includeInBatch;
+                insertCmd.Parameters["@approved"].Value = row.approved;
+                insertCmd.Parameters["@hasIssues"].Value = row.hasIssues;
+                insertCmd.Parameters["@issueNotes"].Value = (object?)row.issueNotes ?? DBNull.Value;
+
+                await insertCmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+                newTempId++;
+            }
+
+            // Disable IDENTITY_INSERT
+            using (var disableCmd = new SqlCommand("SET IDENTITY_INSERT dbo.NewCardgameSetTemp OFF;", conn, tx))
+            {
+                await disableCmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Updates the includeInBatch flag for a specific tempId and renumbers all tempIds sequentially.
+        /// Rows with includeInBatch=true are numbered 1..N (sorted by setDate DESC, setName), 
+        /// rows with includeInBatch=false follow after.
+        /// </summary>
+        public async Task UpdateIncludeInBatchAsync(int cardGameId, int tempId, bool includeInBatch, CancellationToken ct = default)
+        {
+            var password = await _getPasswordAsync().ConfigureAwait(false);
+            using var conn = _connectionFactory.CreateForCurrentUser(password);
+            password = string.Empty;
+
+            await conn.OpenAsync(ct).ConfigureAwait(false);
+
+            using var tx = conn.BeginTransaction();
+            try
+            {
+                // Update the includeInBatch flag for the specified tempId
+                const string updateSql = @"UPDATE dbo.NewCardgameSetTemp SET includeInBatch = @includeInBatch WHERE tempId = @tempId AND cardGameId = @cardGameId;";
+                using (var updateCmd = new SqlCommand(updateSql, conn, tx))
+                {
+                    updateCmd.Parameters.Add("@includeInBatch", SqlDbType.Bit).Value = includeInBatch;
+                    updateCmd.Parameters.Add("@tempId", SqlDbType.Int).Value = tempId;
+                    updateCmd.Parameters.Add("@cardGameId", SqlDbType.Int).Value = cardGameId;
+                    await updateCmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+                }
+
+                // Renumber all tempIds for this cardGameId
+                await RenumberTempIdsAsync(conn, tx, cardGameId, ct).ConfigureAwait(false);
+
+                tx.Commit();
+            }
+            catch
+            {
+                try { tx.Rollback(); } catch { }
+                throw;
+            }
+        }
+
+        /// <summary>
         /// Returns the current rows in dbo.NewCardgameSetTemp for the given cardGameId.
         /// Useful for binding to UI grids.
         /// </summary>
@@ -296,7 +464,7 @@ VALUES
 SELECT tempId, setId, cardGameId, setName, setDesc, abbreviation, setDate, dateStarted, dateUploaded, includeInBatch, approved, hasIssues, issueNotes
 FROM dbo.NewCardgameSetTemp
 WHERE cardGameId = @cardGameId
-ORDER BY setDate DESC, setName;";
+ORDER BY tempId;";
 
             using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.Add("@cardGameId", SqlDbType.Int).Value = cardGameId;
@@ -383,7 +551,7 @@ ORDER BY setDate DESC, setName;";
             public DateTime? SetDate { get; init; }
             public DateTime? DateStarted { get; init; }
             public DateTime? DateUploaded { get; init; }
-            public bool IncludeInBatch { get; init; } // newly added
+            public bool IncludeInBatch { get; init; }
             public bool Approved { get; init; }
             public bool HasIssues { get; init; }
             public string? IssueNotes { get; init; }
