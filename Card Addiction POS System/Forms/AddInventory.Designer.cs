@@ -43,7 +43,7 @@
             panel3 = new Panel();
             lblMaxBatchSize = new Label();
             label2 = new Label();
-            button2 = new Button();
+            btnPush2DB = new Button();
             btnScanItems = new Button();
             btnFetchSets = new Button();
             integerTextBox_MBS = new Syncfusion.Windows.Forms.Tools.IntegerTextBox();
@@ -234,7 +234,7 @@
             // 
             panel3.Controls.Add(lblMaxBatchSize);
             panel3.Controls.Add(label2);
-            panel3.Controls.Add(button2);
+            panel3.Controls.Add(btnPush2DB);
             panel3.Controls.Add(btnScanItems);
             panel3.Controls.Add(btnFetchSets);
             panel3.Controls.Add(integerTextBox_MBS);
@@ -264,15 +264,16 @@
             label2.TabIndex = 8;
             label2.Text = "Max Batch Size:";
             // 
-            // button2
+            // btnPush2DB
             // 
-            button2.Font = new Font("Segoe UI", 14.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            button2.Location = new Point(276, 48);
-            button2.Name = "button2";
-            button2.Size = new Size(123, 35);
-            button2.TabIndex = 7;
-            button2.Text = "Fetch Sets";
-            button2.UseVisualStyleBackColor = true;
+            btnPush2DB.Font = new Font("Segoe UI", 14.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            btnPush2DB.Location = new Point(276, 48);
+            btnPush2DB.Name = "btnPush2DB";
+            btnPush2DB.Size = new Size(123, 35);
+            btnPush2DB.TabIndex = 7;
+            btnPush2DB.Text = "Push to DB";
+            btnPush2DB.UseVisualStyleBackColor = true;
+            btnPush2DB.Click += btnPush2DB_Click;
             // 
             // btnScanItems
             // 
@@ -299,7 +300,7 @@
             // integerTextBox_MBS
             // 
             integerTextBox_MBS.AccessibilityEnabled = true;
-            integerTextBox_MBS.BeforeTouchSize = new Size(29, 23);
+            integerTextBox_MBS.BeforeTouchSize = new Size(32, 23);
             integerTextBox_MBS.ForeColor = SystemColors.WindowText;
             integerTextBox_MBS.IntegerValue = 0L;
             integerTextBox_MBS.Location = new Point(306, 21);
@@ -375,7 +376,7 @@
         private Syncfusion.Windows.Forms.Tools.IntegerTextBox integerTextBox_MBS;
         private Button btnFetchSets;
         private Button btnScanItems;
-        private Button button2;
+        private Button btnPush2DB;
         private Label lblMaxBatchSize;
         private Label label2;
     }

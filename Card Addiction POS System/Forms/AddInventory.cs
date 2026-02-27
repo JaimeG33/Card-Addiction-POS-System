@@ -62,6 +62,9 @@ namespace Card_Addiction_POS_System.Forms
             sfDataGrid_NewSets.QueryRowStyle += SfDataGrid_NewSets_QueryRowStyle;
         }
 
+        // ---- GRID CONFIGURATION ----
+        // Define columns and layout for the sets grid.
+
         private void ConfigureNewSetsGrid()
         {
             // Prevent auto-generation so we control order/width
@@ -140,6 +143,8 @@ namespace Card_Addiction_POS_System.Forms
 
             // NOTE: CellCheckBoxClick is already wired in the designer; do not wire it again here.
         }
+
+        // Configure inventory grid columns and layout.
 
         private void ConfigureNewInvGrid()
         {
@@ -279,6 +284,9 @@ namespace Card_Addiction_POS_System.Forms
             sfDataGrid_NewInv.Columns.Add(new GridNumericColumn { MappingName = "CardId", Visible = false });
         }
 
+        // ---- DISPLAY RENNUMBERING ----
+        // Create a display-friendly TempId mapping for the inventory grid.
+
         private static List<AddNewYugiohInventory.NewTempCardgameInventoryRow> RenumberInventoryRowsForDisplay(
             IEnumerable<AddNewYugiohInventory.NewTempCardgameInventoryRow> rows,
             Dictionary<int, int> displayToActual)
@@ -320,6 +328,9 @@ namespace Card_Addiction_POS_System.Forms
 
             return result;
         }
+
+        // ---- DATA LOAD HELPERS ----
+        // Read inventory rows for a given batch and fetch set names.
 
         private async Task<List<AddNewYugiohInventory.NewTempCardgameInventoryRow>> LoadInventoryBatchAsync(int batchPosition, CancellationToken ct = default)
         {
@@ -401,6 +412,9 @@ ORDER BY tempId;";
             return result == null || result == DBNull.Value ? $"Batch {batchPosition}" : Convert.ToString(result) ?? $"Batch {batchPosition}";
         }
 
+        // ---- UI LABEL UPDATES ----
+        // Keep labels in sync with current batch and set name.
+
         private void UpdateBatchLabels(string setName)
         {
             void apply()
@@ -435,6 +449,9 @@ ORDER BY tempId;";
                 Application.Exit(); // Exit the application if not navigating
             }
         }
+
+        // ---- FETCH SETS WORKFLOW ----
+        // Fetches new sets from TCGCSV into temp table, binds grid, and sets batch limits.
 
         private async void btnFetchSets_Click(object sender, EventArgs e)
         {
@@ -526,6 +543,8 @@ ORDER BY tempId;";
             }
         }
 
+        // ---- BATCH SIZE INPUT HANDLING ----
+
         private void integerTextBox_MBS_TextChanged(object sender, EventArgs e)
         {
             // when user edits the numeric box, ensure it doesn't exceed maxBatchSize and update currentBatch
@@ -548,6 +567,9 @@ ORDER BY tempId;";
                 // ignore parse issues, keep previous currentBatch
             }
         }
+
+        // ---- SETS GRID CHECKBOX TOGGLING ----
+        // Handles includeInBatch toggles, updates DB, renumbers tempIds, and refreshes grid.
 
         private void sfDataGrid_NewSets_CellCheckBoxClick(object sender, Syncfusion.WinForms.DataGrid.Events.CellCheckBoxClickEventArgs e)
         {
@@ -660,6 +682,9 @@ ORDER BY tempId;";
             sfDataGrid_NewSets_CellCheckBoxClick(sender, e);
         }
 
+        // ---- SCAN ITEMS WORKFLOW ----
+        // Invokes product import for selected sets, updates temp tables, refreshes grids, and highlights issues.
+
         private async void btnScanItems_Click(object sender, EventArgs e)
         {
             if (_currentCardGameId < 0)
@@ -756,8 +781,8 @@ ORDER BY tempId;";
             }
         }
 
-
-        // Navigation for reviewing items
+        // ---- NAVIGATION / DISPLAY SELECTION ----
+        // Handles set selection and batch navigation for viewing items.
 
         private async void sfDataGrid_NewSets_CellClick_1(object sender, Syncfusion.WinForms.DataGrid.Events.CellClickEventArgs e)
         {
@@ -834,9 +859,9 @@ ORDER BY tempId;";
             await DisplayBatchItemsAsync().ConfigureAwait(false);
         }
 
+        // ---- SELECTION SNAPSHOT ----
+        // DTO representing the currently selected inventory row.
 
-        // This class represents the selected Item from sfDataGrid_NewInv
-        // It can be used for further processing, such as editing or saving to the database
         public sealed class NewTempCardgameInventory_SelectedRow
         {
             public int TempId { get; init; }             // display tempId
@@ -858,6 +883,9 @@ ORDER BY tempId;";
             public string? IssueNotes { get; init; }
             public DateTime? DateInserted { get; init; }
         }
+
+        // ---- GRID SELECTION AND EDITING ----
+        // Track selection, map display tempId to actual, and persist edits back to DB.
 
         private void sfDataGrid_NewInv_SelectionChanged(object sender, Syncfusion.WinForms.DataGrid.Events.SelectionChangedEventArgs e)
         {
@@ -965,6 +993,9 @@ ORDER BY tempId;";
             }
         }
 
+        // ---- ISSUE HIGHLIGHTING ----
+        // Color-code inventory and set rows based on detected issues/warnings.
+
         private void SfDataGrid_NewInv_QueryCellStyle(object sender, Syncfusion.WinForms.DataGrid.Events.QueryCellStyleEventArgs e)
         {
             var row = e.DataRow?.RowData as AddNewYugiohInventory.NewTempCardgameInventoryRow;
@@ -1007,6 +1038,9 @@ ORDER BY tempId;";
                 e.Style.TextColor = Color.Black;
             }
         }
+
+        // ---- ISSUE EVALUATION & PERSISTENCE ----
+        // Runs validation against inventory rows, writes issue notes, and refreshes UI highlights.
 
         private async Task EvaluateIssuesAndRefreshAsync(
             IEnumerable<AddNewYugiohInventory.NewTempCardgameInventoryRow> rows,
@@ -1057,6 +1091,11 @@ ORDER BY tempId;";
             {
                 apply();
             }
+        }
+
+        private void btnPush2DB_Click(object sender, EventArgs e)
+        {
+
         }
     }
 }

@@ -10,8 +10,15 @@ using Microsoft.Data.SqlClient;
 
 namespace Card_Addiction_POS_System.Functions.Inventory.AddNew
 {
+    /// <summary>
+    /// Central helper that inspects temp inventory rows for missing/invalid data
+    /// and writes issue notes back to the database.
+    /// </summary>
     internal sealed class ErrorIdentifyerHelper
     {
+        /// <summary>
+        /// Aggregated results describing critical/ok sets and per-row issues.
+        /// </summary>
         public sealed class InventoryIssueResult
         {
             public HashSet<int> CriticalSetIds { get; } = new();
@@ -21,6 +28,9 @@ namespace Card_Addiction_POS_System.Functions.Inventory.AddNew
             public HashSet<string> MissingRarityValues { get; } = new();
             public Dictionary<int, string> IssueNotesByTempId { get; } = new();               // tempId -> note
         }
+
+        // ---- ISSUE EVALUATION ----
+        // Evaluates each temp inventory row for required-field gaps and rarity table presence.
 
         public async Task<InventoryIssueResult> EvaluateInventoryIssuesAsync(
             IEnumerable<AddNewYugiohInventory.NewTempCardgameInventoryRow> rows,
@@ -33,6 +43,7 @@ namespace Card_Addiction_POS_System.Functions.Inventory.AddNew
             var result = new InventoryIssueResult();
             if (rows == null) return result;
 
+            // Load known rarities for this game (if table exists/accessible)
             var (raritiesInDb, rarityLookupAvailable) = await LoadRaritiesAsync(connectionFactory, getPasswordAsync, databaseName, cardGameId, ct).ConfigureAwait(false);
 
             var setIdsWithRequiredIssues = new HashSet<int>();
@@ -43,6 +54,7 @@ namespace Card_Addiction_POS_System.Functions.Inventory.AddNew
                 setIdsSeen.Add(row.SetId);
                 var missingCols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+                // Required fields check
                 if (row.CardId == 0) missingCols.Add(nameof(row.CardId));
                 if (row.CardGameId == 0) missingCols.Add(nameof(row.CardGameId));
                 if (row.SetId == 0) missingCols.Add(nameof(row.SetId));
@@ -55,7 +67,7 @@ namespace Card_Addiction_POS_System.Functions.Inventory.AddNew
                     if (row.SetId != 0) setIdsWithRequiredIssues.Add(row.SetId);
                 }
 
-                // Warn on rarity not in DB only if lookup succeeded
+                // Optional rarity validation against DB values (warn only)
                 if (rarityLookupAvailable &&
                     !string.IsNullOrWhiteSpace(row.Rarity) &&
                     !raritiesInDb.Contains(row.Rarity.Trim(), StringComparer.OrdinalIgnoreCase))
@@ -69,12 +81,12 @@ namespace Card_Addiction_POS_System.Functions.Inventory.AddNew
                     warnCols.Add(nameof(row.Rarity));
                 }
 
-                // Build issue note text
+                // Build a human-readable issue note for UI/storage
                 var note = BuildIssueNote(missingCols, rarityLookupAvailable, rarityMissing: result.InventoryCellWarnings.ContainsKey(row.TempId));
                 result.IssueNotesByTempId[row.TempId] = note;
             }
 
-            // Good sets: seen, non-zero, and no required issues
+            // Good vs critical set classification
             foreach (var setId in setIdsSeen)
             {
                 if (setId != 0 && !setIdsWithRequiredIssues.Contains(setId))
@@ -90,6 +102,9 @@ namespace Card_Addiction_POS_System.Functions.Inventory.AddNew
 
             return result;
         }
+
+        // ---- ISSUE NOTE CONSTRUCTION ----
+        // Turns missing columns + rarity warning into a single note string.
 
         private static string BuildIssueNote(
             HashSet<string> missingCols,
@@ -109,6 +124,9 @@ namespace Card_Addiction_POS_System.Functions.Inventory.AddNew
 
             return parts.Count == 0 ? string.Empty : string.Join(" | ", parts);
         }
+
+        // ---- DB UPDATE OF ISSUE NOTES ----
+        // Persists calculated issue notes back into dbo.NewTempCardgameInventory.
 
         public async Task UpdateIssueNotesAsync(
             IEnumerable<AddNewYugiohInventory.NewTempCardgameInventoryRow> rows,
@@ -131,6 +149,7 @@ WHERE cardGameId = @cardGameId AND tempId = @tempId;";
 
             foreach (var row in rows)
             {
+                // UI can remap display tempId to actual DB tempId
                 if (!displayToActualTempId.TryGetValue(row.TempId, out var actualTempId) || actualTempId == 0)
                 {
                     actualTempId = row.TempId;
@@ -147,6 +166,9 @@ WHERE cardGameId = @cardGameId AND tempId = @tempId;";
                 await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
             }
         }
+
+        // ---- RARITY LOOKUP LOADING ----
+        // Attempts to read rarity values from the game's rarity table; returns availability flag.
 
         private static async Task<(HashSet<string> rarities, bool available)> LoadRaritiesAsync(
             SqlConnectionFactory connectionFactory,

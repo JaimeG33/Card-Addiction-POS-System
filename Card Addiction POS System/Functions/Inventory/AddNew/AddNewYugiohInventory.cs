@@ -21,6 +21,9 @@ namespace Card_Addiction_POS_System.Functions.Inventory.AddNew
         private readonly Func<Task<string>> _getPasswordAsync;
         private readonly HttpClient _http;
 
+        /// <summary>
+        /// Accepts the app's SqlConnectionFactory + password delegate; allows injecting HttpClient for tests.
+        /// </summary>
         public AddNewYugiohInventory(SqlConnectionFactory connectionFactory, Func<Task<string>> getPasswordAsync, HttpClient? http = null)
         {
             _connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
@@ -34,11 +37,15 @@ namespace Card_Addiction_POS_System.Functions.Inventory.AddNew
             }
         }
 
+        // ---- MAIN ORCHESTRATION: FETCH, INSERT, RETURN ----
+        // Pull selected sets, fetch their products, populate temp inventory, normalize, then return inserted rows.
+
         public async Task<List<NewTempCardgameInventoryRow>> RunAsync(int cardGameId, int maxBatch, CancellationToken ct = default)
         {
             if (cardGameId <= 0) throw new ArgumentOutOfRangeException(nameof(cardGameId));
             if (maxBatch <= 0) return new List<NewTempCardgameInventoryRow>();
 
+            // Open connection per current user
             var password = await _getPasswordAsync().ConfigureAwait(false);
             using var conn = _connectionFactory.CreateForCurrentUser(password);
             password = string.Empty;
@@ -80,6 +87,7 @@ ORDER BY tempId;";
             {
                 foreach (var set in sets)
                 {
+                    // Pull products for this set from TCGCSV
                     var products = await FetchProductsAsync(cardGameId, set.setId, ct).ConfigureAwait(false);
 
                     // Clear any previous rows for this batchPosition to avoid duplicates
@@ -89,6 +97,7 @@ ORDER BY tempId;";
                         await deleteCmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
                     }
 
+                    // Insert fresh rows for this set
                     const string insertSql = @"
 INSERT INTO dbo.NewTempCardgameInventory
     (batchPosition, cardGameId, setId, cardId, cardName, abbreviation, rarity, foil, imageURL, mktPriceURL, mktPrice, amtInStock, approved, needsReview, issueNotes)
@@ -143,16 +152,19 @@ VALUES
                 throw;
             }
 
-            // Normalize sealed product rarity before returning
+            // 3) Normalize sealed product rarity before returning
             var batchPositions = sets.Select(s => s.tempId).ToList();
             await UpdateSealedRarityAsync(conn, cardGameId, batchPositions, ct).ConfigureAwait(false);
 
-             // 3) Return the rows just inserted for display
-             return await LoadInventoryRowsAsync(conn, batchPositions, ct).ConfigureAwait(false);
+            // 4) Return the rows just inserted for display
+            return await LoadInventoryRowsAsync(conn, batchPositions, ct).ConfigureAwait(false);
         }
 
         public static IReadOnlyList<string> GetRequiredColumnsForValidation() =>
             new[] { "cardId", "cardGameId", "cardName", "setId", "rarity" };
+
+        // ---- HTTP FETCH: PRODUCTS ----
+        // Calls TCGCSV products endpoint for a given category/set and deserializes the JSON.
 
         private async Task<List<ProductResult>> FetchProductsAsync(int cardGameId, int setId, CancellationToken ct)
         {
@@ -173,6 +185,9 @@ VALUES
             return parsed.Results.Where(r => r.GroupId == setId).ToList();
         }
 
+        // ---- PRODUCT FIELD HELPERS ----
+        // Extracts specific extended data fields (rarity/number) from TCGCSV product payload.
+
         private static string? GetRarity(ProductResult p)
         {
             if (p.ExtendedData == null) return null;
@@ -190,6 +205,9 @@ VALUES
                 ed.DisplayName?.Equals("Number", StringComparison.OrdinalIgnoreCase) == true);
             return num?.Value;
         }
+
+        // ---- DB READBACK ----
+        // Loads inserted temp inventory rows for the specified batch positions.
 
         private static async Task<List<NewTempCardgameInventoryRow>> LoadInventoryRowsAsync(SqlConnection conn, List<int> batchPositions, CancellationToken ct)
         {
@@ -240,11 +258,14 @@ ORDER BY batchPosition, tempId;";
                     NeedsReview = reader.IsDBNull(14) ? false : reader.GetBoolean(14),
                     IssueNotes = reader.IsDBNull(15) ? null : reader.GetString(15),
                     DateInserted = reader.IsDBNull(16) ? (DateTime?)null : reader.GetDateTime(16)
-                 });
-             }
+                });
+            }
 
             return results;
         }
+
+        // ---- DATA NORMALIZATION ----
+        // Sets rarity to "Sealed" for sealed products lacking a rarity value.
 
         private static async Task UpdateSealedRarityAsync(SqlConnection conn, int cardGameId, List<int> batchPositions, CancellationToken ct)
         {
@@ -277,6 +298,8 @@ WHERE cardGameId = @cardGameId
             await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
         }
 
+        // ---- DTOs FOR DESERIALIZATION / UI ----
+
         private sealed class TcgCsvProductsResponse
         {
             public bool Success { get; set; }
@@ -308,7 +331,7 @@ WHERE cardGameId = @cardGameId
             public int SetId { get; init; }
             public int CardId { get; init; }
             public int ConditionId { get; init; } = 0;   // default 0 since column not present
-             public string CardName { get; init; } = string.Empty;
+            public string CardName { get; init; } = string.Empty;
             public string? Abbreviation { get; init; }
             public string? Rarity { get; init; }
             public string? Foil { get; init; }
@@ -321,6 +344,6 @@ WHERE cardGameId = @cardGameId
             public string? IssueNotes { get; init; }
             public DateTime? DateInserted { get; init; }
         }
-        
+
     }
 }
