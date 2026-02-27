@@ -16,6 +16,7 @@ using Card_Addiction_POS_System.Functions.Inventory.AddNew;
 using Card_Addiction_POS_System.Functions.Models;
 using Card_Addiction_POS_System.Security;
 using Microsoft.Data.SqlClient;
+using System.Threading;
 
 namespace Card_Addiction_POS_System.Forms
 {
@@ -1093,9 +1094,49 @@ ORDER BY tempId;";
             }
         }
 
-        private void btnPush2DB_Click(object sender, EventArgs e)
+        private async void btnPush2DB_Click(object sender, EventArgs e)
         {
+            try
+            {
+                if (selectCardGameControl1.SelectedGame is null || selectCardGameControl1.SelectedCardGameId <= 0)
+                {
+                    MessageBox.Show("Please select a card game before pushing to the database.", "Push to DB", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
 
+                var settingsStore = new JsonSettingsStore(AppPaths.SettingsPath);
+                var appSettings = settingsStore.Load();
+                var connectionFactory = new SqlConnectionFactory(appSettings);
+
+                var pusher = new PushNewProduct2DB(connectionFactory, Session.PasswordProvider.GetPasswordAsync);
+
+                btnPush2DB.Enabled = false;
+                await pusher.RunAsync(selectCardGameControl1.SelectedGame, CancellationToken.None).ConfigureAwait(true);
+
+                MessageBox.Show("Push completed successfully.", "Push to DB", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                // Navigate back to HomePage
+                IsNavigating = true;
+                var home = new HomePage();
+                home.Show();
+                Close();
+            }
+            catch (InvalidOperationException ex)
+            {
+                MessageBox.Show(ex.Message, "Push blocked", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            catch (SqlException ex)
+            {
+                MessageBox.Show($"Database error: {ex.Message}", "Push failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Unexpected error: {ex.Message}", "Push failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                btnPush2DB.Enabled = true;
+            }
         }
     }
 }
