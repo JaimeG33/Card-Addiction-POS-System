@@ -9,6 +9,7 @@ namespace Card_Addiction_POS_System.Functions.Models
     public class InventoryItem
     {
         public string CardName { get; set; } = "";
+        public string Abbreviation { get; set; } = "";
         public string Rarity { get; set; } = "";
         public int SetId { get; set; }
         public decimal MktPrice { get; set; }

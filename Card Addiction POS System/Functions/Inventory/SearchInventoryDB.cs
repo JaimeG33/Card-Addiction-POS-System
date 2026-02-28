@@ -110,15 +110,13 @@ namespace Card_Addiction_POS_System.Functions.Inventory
                 int cardGameId,
                 string searchText)
             {
-                // Resolve the game record from the central mapping
                 if (!SelectedCardGameLogic.TryGetById(cardGameId, out var game))
                     throw new ArgumentException("Invalid card game selection.", nameof(cardGameId));
 
                 var tableName = string.Concat(game.DatabaseName, "Inventory");
 
-                // Base query uses a format placeholder for the table name; parameters are used for user input.
                 var baseQuery =
-                    $@"SELECT cardName, rarity, setId, mktPrice, conditionId, amtInStock, 
+                    $@"SELECT cardName, COALESCE(abbreviation, '') AS abbreviation, rarity, setId, mktPrice, conditionId, amtInStock, 
                      priceUp2Date, imageURL, mktPriceURL, cardId
                     FROM {tableName}
                     WHERE cardName LIKE @cardName
@@ -149,6 +147,7 @@ namespace Card_Addiction_POS_System.Functions.Inventory
 
                 // Cache ordinals for performance and clarity: using ordinals avoids repeated string lookups and slightly faster access.
                 var ordCardName = reader.GetOrdinal("cardName");
+                var ordAbbreviation = reader.GetOrdinal("abbreviation");
                 var ordRarity = reader.GetOrdinal("rarity");
                 var ordSetId = reader.GetOrdinal("setId");
                 var ordMktPrice = reader.GetOrdinal("mktPrice");
@@ -170,6 +169,7 @@ namespace Card_Addiction_POS_System.Functions.Inventory
                     {
                         // Use conditional checks for DBNull for each column that may contain nulls.
                         CardName = reader.IsDBNull(ordCardName) ? string.Empty : reader.GetString(ordCardName),
+                        Abbreviation = reader.IsDBNull(ordAbbreviation) ? string.Empty : reader.GetString(ordAbbreviation),
                         Rarity = reader.IsDBNull(ordRarity) ? string.Empty : reader.GetString(ordRarity),
                         SetId = reader.IsDBNull(ordSetId) ? 0 : reader.GetInt32(ordSetId),
                         MktPrice = reader.IsDBNull(ordMktPrice) ? 0m : reader.GetDecimal(ordMktPrice),

@@ -21,14 +21,6 @@ namespace Card_Addiction_POS_System.Functions.Sales
         private readonly SqlConnectionFactory _connectionFactory;
         private readonly Func<Task<string>> _getPasswordAsync;
 
-        // Map cardGameId (the numeric id used in TransactionLineItem.CardGameId) to the corresponding inventory table.
-        private static readonly Dictionary<int, string> _cardGameToTable = new()
-        {
-            [1] = "YugiohInventory",
-            [2] = "MagicInventory",
-            [3] = "PokemonInventory"
-        };
-
         public SaleWorkflowService(SqlConnectionFactory connectionFactory, Func<Task<string>> getPasswordAsync)
         {
             _connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
@@ -215,7 +207,7 @@ namespace Card_Addiction_POS_System.Functions.Sales
                 var grouped = lines.GroupBy(l => l.CardGameId);
                 foreach (var group in grouped)
                 {
-                    if (!_cardGameToTable.TryGetValue(group.Key, out var tableName))
+                    if (!TryResolveInventoryTableName(group.Key, out var tableName))
                         continue; // unknown game id; skip
 
                     var sb = new StringBuilder();
@@ -278,6 +270,25 @@ namespace Card_Addiction_POS_System.Functions.Sales
         private async Task<string> _getPassword_async_guard()
         {
             return await _getPasswordAsync().ConfigureAwait(false);
+        }
+
+        private static bool TryResolveInventoryTableName(int cardGameId, out string tableName)
+        {
+            tableName = string.Empty;
+
+            if (!SelectedCardGameLogic.TryGetById(cardGameId, out var game) || game is null)
+            {
+                return false;
+            }
+
+            // Optional guard if Misc should never be inventory-adjusted
+            if (string.Equals(game.DatabaseName, "Misc", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            tableName = string.Concat(game.DatabaseName, "Inventory");
+            return true;
         }
     }
 }

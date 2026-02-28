@@ -181,6 +181,7 @@ namespace Card_Addiction_POS_System.Functions.Pricing
         /// Dispose pattern: this instance does not dispose the shared driver.
         /// To explicitly shut down the shared browser, call <see cref="ShutdownSharedDriver"/>.
         /// </summary>
+
         public void Dispose()
         {
             Dispose(true);
