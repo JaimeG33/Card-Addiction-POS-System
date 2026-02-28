@@ -141,8 +141,10 @@ namespace Card_Addiction_POS_System.Functions.Inventory.AddNew
             // Threshold: publishedOn must not be more than 1 month ahead of now.
             var maxAllowed = DateTime.UtcNow.AddMonths(1);
 
-            // Keep only groups within threshold (or with no published date)
-            var toInsert = allGroups.Where(g => !g.PublishedOn.HasValue || g.PublishedOn.Value <= maxAllowed).ToList();
+            // Keep everything in the past (no lower bound) and only trim sets that are too far in the future.
+            var toInsert = allGroups
+                .Where(g => !g.PublishedOn.HasValue || g.PublishedOn.Value <= maxAllowed)
+                .ToList();
 
             // 2) Open a DB connection for current user
             var password = await _getPasswordAsync().ConfigureAwait(false);

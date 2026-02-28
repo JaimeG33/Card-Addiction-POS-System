@@ -722,15 +722,14 @@ ORDER BY tempId;";
                     sfDataGrid_NewInv.DataSource = displayRows;
                 }
 
-                // After loading items, remove temp sets not represented in inventory
+                // After loading items, keep all temp sets (do NOT prune unscanned ones)
                 var releaseCheck = new ReleaseCheck(connectionFactory, Session.PasswordProvider.GetPasswordAsync);
-                await releaseCheck.DeleteTempSetsNotInInventoryAsync(_currentCardGameId);
                 var remainingSets = await releaseCheck.GetNewCardgameSetTempAsync(_currentCardGameId);
 
                 _newSetsRows = remainingSets.Cast<object>().ToList();
-                if (this.IsHandleCreated && this.InvokeRequired)
+                if (IsHandleCreated && InvokeRequired)
                 {
-                    this.Invoke(() => sfDataGrid_NewSets.DataSource = remainingSets);
+                    Invoke(() => sfDataGrid_NewSets.DataSource = remainingSets);
                 }
                 else
                 {
@@ -782,216 +781,57 @@ ORDER BY tempId;";
             }
         }
 
-        // ---- NAVIGATION / DISPLAY SELECTION ----
-        // Handles set selection and batch navigation for viewing items.
 
-        private async void sfDataGrid_NewSets_CellClick_1(object sender, Syncfusion.WinForms.DataGrid.Events.CellClickEventArgs e)
+        // Convert Magic rows to the common row type used by the grids/issue evaluation
+        private static List<AddNewYugiohInventory.NewTempCardgameInventoryRow> ConvertRows(IEnumerable<AddNewMagicInventory.NewTempCardgameInventoryRow> rows)
         {
-            try
+            return rows.Select(r => new AddNewYugiohInventory.NewTempCardgameInventoryRow
             {
-                var dataItem = e.DataRow?.RowData;
-                if (dataItem == null) return;
-
-                var tempIdProp = dataItem.GetType().GetProperty("TempId");
-                var setIdProp = dataItem.GetType().GetProperty("SetId");
-                var setNameProp = dataItem.GetType().GetProperty("SetName");
-
-                if (tempIdProp == null || setIdProp == null) return;
-
-                selectedBatch = Convert.ToInt32(tempIdProp.GetValue(dataItem) ?? 0);
-                selectedSetId = Convert.ToInt32(setIdProp.GetValue(dataItem) ?? 0);
-                selectedSetName = setNameProp?.GetValue(dataItem)?.ToString() ?? string.Empty;
-
-                if (readyForItems && selectedBatch > 0)
-                {
-                    displayedBatch = selectedBatch;
-                    displayedSetId = selectedSetId;
-                    displayedSetName = selectedSetName;
-                    await DisplayBatchItemsAsync().ConfigureAwait(false);
-                }
-            }
-            catch
-            {
-                // ignore
-            }
+                TempId = r.TempId,
+                BatchPosition = r.BatchPosition,
+                CardGameId = r.CardGameId,
+                SetId = r.SetId,
+                CardId = r.CardId,
+                ConditionId = r.ConditionId,
+                CardName = r.CardName,
+                Abbreviation = r.Abbreviation,
+                Rarity = r.Rarity,
+                Foil = r.Foil,
+                ImageUrl = r.ImageUrl,
+                MktPriceUrl = r.MktPriceUrl,
+                MktPrice = r.MktPrice,
+                AmtInStock = r.AmtInStock,
+                Approved = r.Approved,
+                NeedsReview = r.NeedsReview,
+                IssueNotes = r.IssueNotes,
+                DateInserted = r.DateInserted
+            }).ToList();
         }
 
-        private async Task DisplayBatchItemsAsync()
+        // Convert Pokémon rows to the common row type used by the grids/issue evaluation
+        private static List<AddNewYugiohInventory.NewTempCardgameInventoryRow> ConvertRows(IEnumerable<AddNewPokemonInventory.NewTempCardgameInventoryRow> rows)
         {
-            var rows = await LoadInventoryBatchAsync(displayedBatch).ConfigureAwait(false);
-            var name = await GetSetNameForBatchAsync(displayedBatch).ConfigureAwait(false);
-            displayedSetName = name;
-
-            void apply()
+            return rows.Select(r => new AddNewYugiohInventory.NewTempCardgameInventoryRow
             {
-                sfDataGrid_NewInv.DataSource = rows;
-                UpdateBatchLabels(name);
-            }
-
-            if (IsHandleCreated && InvokeRequired)
-            {
-                BeginInvoke((Action)(() => apply()));
-            }
-            else
-            {
-                apply();
-            }
-        }
-
-        private async void btnPrev_Click(object sender, EventArgs e)
-        {
-            if (!readyForItems || currentBatch <= 0)
-            {
-                return;
-            }
-
-            displayedBatch = displayedBatch <= 1 ? currentBatch : displayedBatch - 1;
-            await DisplayBatchItemsAsync().ConfigureAwait(false);
-        }
-
-        private async void btnNext_Click(object sender, EventArgs e)
-        {
-            if (!readyForItems || currentBatch <= 0)
-            {
-                return;
-            }
-
-            displayedBatch = displayedBatch >= currentBatch ? 1 : displayedBatch + 1;
-            await DisplayBatchItemsAsync().ConfigureAwait(false);
-        }
-
-        // ---- SELECTION SNAPSHOT ----
-        // DTO representing the currently selected inventory row.
-
-        public sealed class NewTempCardgameInventory_SelectedRow
-        {
-            public int TempId { get; init; }             // display tempId
-            public int ActualTempId { get; init; }       // DB tempId
-            public int BatchPosition { get; init; }
-            public int CardGameId { get; init; }
-            public int SetId { get; init; }
-            public int CardId { get; init; }
-            public string CardName { get; init; } = string.Empty;
-            public string? Abbreviation { get; init; }
-            public string? Rarity { get; init; }
-            public string? Foil { get; init; }
-            public string? ImageUrl { get; init; }
-            public string? MktPriceUrl { get; init; }
-            public decimal? MktPrice { get; init; }
-            public int? AmtInStock { get; init; }
-            public bool? Approved { get; init; }
-            public bool NeedsReview { get; init; }
-            public string? IssueNotes { get; init; }
-            public DateTime? DateInserted { get; init; }
-        }
-
-        // ---- GRID SELECTION AND EDITING ----
-        // Track selection, map display tempId to actual, and persist edits back to DB.
-
-        private void sfDataGrid_NewInv_SelectionChanged(object sender, Syncfusion.WinForms.DataGrid.Events.SelectionChangedEventArgs e)
-        {
-            try
-            {
-                var item = e.AddedItems?.FirstOrDefault();
-                if (item == null)
-                {
-                    _selectedInventoryRow = null;
-                    return;
-                }
-
-                if (item is not AddNewYugiohInventory.NewTempCardgameInventoryRow row)
-                {
-                    _selectedInventoryRow = null;
-                    return;
-                }
-
-                var displayTempId = row.TempId;
-                _invDisplayToActualTempId.TryGetValue(displayTempId, out var actualTempId);
-
-                _selectedInventoryRow = new NewTempCardgameInventory_SelectedRow
-                {
-                    TempId = displayTempId,
-                    ActualTempId = actualTempId == 0 ? displayTempId : actualTempId,
-                    BatchPosition = row.BatchPosition,
-                    CardGameId = row.CardGameId,
-                    SetId = row.SetId,
-                    CardId = row.CardId,
-                    CardName = row.CardName,
-                    Abbreviation = row.Abbreviation,
-                    Rarity = row.Rarity,
-                    Foil = row.Foil,
-                    ImageUrl = row.ImageUrl,
-                    MktPriceUrl = row.MktPriceUrl,
-                    MktPrice = row.MktPrice,
-                    AmtInStock = row.AmtInStock,
-                    Approved = row.Approved,
-                    NeedsReview = row.NeedsReview,
-                    IssueNotes = row.IssueNotes,
-                    DateInserted = row.DateInserted
-                };
-            }
-            catch
-            {
-                _selectedInventoryRow = null;
-            }
-        }
-
-        private async void sfDataGrid_NewInv_CurrentCellEndEdit(object sender, Syncfusion.WinForms.DataGrid.Events.CurrentCellEndEditEventArgs e)
-        {
-            try
-            {
-                var rowData = e.DataRow?.RowData as AddNewYugiohInventory.NewTempCardgameInventoryRow;
-                if (rowData == null)
-                {
-                    return;
-                }
-
-                // Resolve actual tempId using mapping
-                _invDisplayToActualTempId.TryGetValue(rowData.TempId, out var actualTempId);
-                if (actualTempId == 0)
-                {
-                    // fallback: use display as actual if mapping missing
-                    actualTempId = rowData.TempId;
-                }
-
-                var edited = new NewTempCardgameInventory_SelectedRow
-                {
-                    TempId = rowData.TempId,
-                    ActualTempId = actualTempId,
-                    BatchPosition = rowData.BatchPosition,
-                    CardGameId = rowData.CardGameId,
-                    SetId = rowData.SetId,
-                    CardId = rowData.CardId,
-                    CardName = rowData.CardName,
-                    Abbreviation = rowData.Abbreviation,
-                    Rarity = rowData.Rarity,
-                    Foil = rowData.Foil,
-                    ImageUrl = rowData.ImageUrl,
-                    MktPriceUrl = rowData.MktPriceUrl,
-                    MktPrice = rowData.MktPrice,
-                    AmtInStock = rowData.AmtInStock,
-                    Approved = rowData.Approved,
-                    NeedsReview = rowData.NeedsReview,
-                    IssueNotes = rowData.IssueNotes,
-                    DateInserted = rowData.DateInserted
-                };
-
-                _selectedInventoryRow = edited;
-
-                var settingsStore = new JsonSettingsStore(AppPaths.SettingsPath);
-                var appSettings = settingsStore.Load();
-                var connectionFactory = new SqlConnectionFactory(appSettings);
-
-                var editor = new EditsMadeToInventoryTable(connectionFactory, Session.PasswordProvider.GetPasswordAsync);
-                await editor.UpdateInventoryRowAsync(edited).ConfigureAwait(false);
-
-                // Refresh current batch to reflect DB state
-                await DisplayBatchItemsAsync().ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Save failed: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+                TempId = r.TempId,
+                BatchPosition = r.BatchPosition,
+                CardGameId = r.CardGameId,
+                SetId = r.SetId,
+                CardId = r.CardId,
+                ConditionId = r.ConditionId,
+                CardName = r.CardName,
+                Abbreviation = r.Abbreviation,
+                Rarity = r.Rarity,
+                Foil = r.Foil,
+                ImageUrl = r.ImageUrl,
+                MktPriceUrl = r.MktPriceUrl,
+                MktPrice = r.MktPrice,
+                AmtInStock = r.AmtInStock,
+                Approved = r.Approved,
+                NeedsReview = r.NeedsReview,
+                IssueNotes = r.IssueNotes,
+                DateInserted = r.DateInserted
+            }).ToList();
         }
 
         // ---- ISSUE HIGHLIGHTING ----
@@ -1021,7 +861,6 @@ ORDER BY tempId;";
         {
             if (e.RowData == null) return;
 
-            // sets grid rows are ReleaseCheck.NewCardgameSetTempRow
             var setIdProp = e.RowData.GetType().GetProperty("SetId");
             if (setIdProp == null) return;
             var setId = Convert.ToInt32(setIdProp.GetValue(e.RowData) ?? 0);
@@ -1094,6 +933,141 @@ ORDER BY tempId;";
             }
         }
 
+        // ---- SELECTION SNAPSHOT ----
+        // DTO representing the currently selected inventory row.
+
+        public sealed class NewTempCardgameInventory_SelectedRow
+        {
+            public int TempId { get; init; }             // display tempId
+            public int ActualTempId { get; init; }       // DB tempId
+            public int BatchPosition { get; init; }
+            public int CardGameId { get; init; }
+            public int SetId { get; init; }
+            public int CardId { get; init; }
+            public string CardName { get; init; } = string.Empty;
+            public string? Abbreviation { get; init; }
+            public string? Rarity { get; init; }
+            public string? Foil { get; init; }
+            public string? ImageUrl { get; init; }
+            public string? MktPriceUrl { get; init; }
+            public decimal? MktPrice { get; init; }
+            public int? AmtInStock { get; init; }
+            public bool? Approved { get; init; }
+            public bool NeedsReview { get; init; }
+            public string? IssueNotes { get; init; }
+            public DateTime? DateInserted { get; init; }
+        }
+
+        // Restore missing handlers to match Designer wiring
+
+        private void btnPrev_Click(object sender, EventArgs e)
+        {
+            if (!readyForItems || currentBatch <= 0)
+            {
+                return;
+            }
+
+            displayedBatch = displayedBatch <= 1 ? currentBatch : displayedBatch - 1;
+            _ = DisplayBatchItemsAsync();
+        }
+
+        private void btnNext_Click(object sender, EventArgs e)
+        {
+            if (!readyForItems || currentBatch <= 0)
+            {
+                return;
+            }
+
+            displayedBatch = displayedBatch >= currentBatch ? 1 : displayedBatch + 1;
+            _ = DisplayBatchItemsAsync();
+        }
+
+        private async void sfDataGrid_NewSets_CellClick_1(object sender, Syncfusion.WinForms.DataGrid.Events.CellClickEventArgs e)
+        {
+            try
+            {
+                var dataItem = e.DataRow?.RowData;
+                if (dataItem == null) return;
+
+                var tempIdProp = dataItem.GetType().GetProperty("TempId");
+                var setIdProp = dataItem.GetType().GetProperty("SetId");
+                var setNameProp = dataItem.GetType().GetProperty("SetName");
+
+                if (tempIdProp == null || setIdProp == null) return;
+
+                selectedBatch = Convert.ToInt32(tempIdProp.GetValue(dataItem) ?? 0);
+                selectedSetId = Convert.ToInt32(setIdProp.GetValue(dataItem) ?? 0);
+                selectedSetName = setNameProp?.GetValue(dataItem)?.ToString() ?? string.Empty;
+
+                if (readyForItems && selectedBatch > 0)
+                {
+                    displayedBatch = selectedBatch;
+                    displayedSetId = selectedSetId;
+                    displayedSetName = selectedSetName;
+                    await DisplayBatchItemsAsync().ConfigureAwait(false);
+                }
+            }
+            catch
+            {
+                // ignore
+            }
+        }
+
+        private async void sfDataGrid_NewInv_CurrentCellEndEdit(object sender, Syncfusion.WinForms.DataGrid.Events.CurrentCellEndEditEventArgs e)
+        {
+            try
+            {
+                var rowData = e.DataRow?.RowData as AddNewYugiohInventory.NewTempCardgameInventoryRow;
+                if (rowData == null)
+                {
+                    return;
+                }
+
+                _invDisplayToActualTempId.TryGetValue(rowData.TempId, out var actualTempId);
+                if (actualTempId == 0)
+                {
+                    actualTempId = rowData.TempId;
+                }
+
+                var edited = new NewTempCardgameInventory_SelectedRow
+                {
+                    TempId = rowData.TempId,
+                    ActualTempId = actualTempId,
+                    BatchPosition = rowData.BatchPosition,
+                    CardGameId = rowData.CardGameId,
+                    SetId = rowData.SetId,
+                    CardId = rowData.CardId,
+                    CardName = rowData.CardName,
+                    Abbreviation = rowData.Abbreviation,
+                    Rarity = rowData.Rarity,
+                    Foil = rowData.Foil,
+                    ImageUrl = rowData.ImageUrl,
+                    MktPriceUrl = rowData.MktPriceUrl,
+                    MktPrice = rowData.MktPrice,
+                    AmtInStock = rowData.AmtInStock,
+                    Approved = rowData.Approved,
+                    NeedsReview = rowData.NeedsReview,
+                    IssueNotes = rowData.IssueNotes,
+                    DateInserted = rowData.DateInserted
+                };
+
+                _selectedInventoryRow = edited;
+
+                var settingsStore = new JsonSettingsStore(AppPaths.SettingsPath);
+                var appSettings = settingsStore.Load();
+                var connectionFactory = new SqlConnectionFactory(appSettings);
+
+                var editor = new EditsMadeToInventoryTable(connectionFactory, Session.PasswordProvider.GetPasswordAsync);
+                await editor.UpdateInventoryRowAsync(edited).ConfigureAwait(false);
+
+                await DisplayBatchItemsAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Save failed: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
         private async void btnPush2DB_Click(object sender, EventArgs e)
         {
             try
@@ -1115,7 +1089,6 @@ ORDER BY tempId;";
 
                 MessageBox.Show("Push completed successfully.", "Push to DB", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-                // Navigate back to HomePage
                 IsNavigating = true;
                 var home = new HomePage();
                 home.Show();
@@ -1136,6 +1109,76 @@ ORDER BY tempId;";
             finally
             {
                 btnPush2DB.Enabled = true;
+            }
+        }
+
+        private async Task DisplayBatchItemsAsync()
+        {
+            var rows = await LoadInventoryBatchAsync(displayedBatch).ConfigureAwait(false);
+            var name = await GetSetNameForBatchAsync(displayedBatch).ConfigureAwait(false);
+            displayedSetName = name;
+
+            void apply()
+            {
+                sfDataGrid_NewInv.DataSource = rows;
+                UpdateBatchLabels(name);
+            }
+
+            if (IsHandleCreated && InvokeRequired)
+            {
+                BeginInvoke((Action)(() => apply()));
+            }
+            else
+            {
+                apply();
+            }
+        }
+
+        private void sfDataGrid_NewInv_SelectionChanged(object sender, Syncfusion.WinForms.DataGrid.Events.SelectionChangedEventArgs e)
+        {
+            try
+            {
+                var item = e.AddedItems?.FirstOrDefault();
+                if (item == null)
+                {
+                    _selectedInventoryRow = null;
+                    return;
+                }
+
+                if (item is not AddNewYugiohInventory.NewTempCardgameInventoryRow row)
+                {
+                    _selectedInventoryRow = null;
+                    return;
+                }
+
+                var displayTempId = row.TempId;
+                _invDisplayToActualTempId.TryGetValue(displayTempId, out var actualTempId);
+
+                _selectedInventoryRow = new NewTempCardgameInventory_SelectedRow
+                {
+                    TempId = displayTempId,
+                    ActualTempId = actualTempId == 0 ? displayTempId : actualTempId,
+                    BatchPosition = row.BatchPosition,
+                    CardGameId = row.CardGameId,
+                    SetId = row.SetId,
+                    CardId = row.CardId,
+                    CardName = row.CardName,
+                    Abbreviation = row.Abbreviation,
+                    Rarity = row.Rarity,
+                    Foil = row.Foil,
+                    ImageUrl = row.ImageUrl,
+                    MktPriceUrl = row.MktPriceUrl,
+                    MktPrice = row.MktPrice,
+                    AmtInStock = row.AmtInStock,
+                    Approved = row.Approved,
+                    NeedsReview = row.NeedsReview,
+                    IssueNotes = row.IssueNotes,
+                    DateInserted = row.DateInserted
+                };
+            }
+            catch
+            {
+                _selectedInventoryRow = null;
             }
         }
     }
