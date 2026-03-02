@@ -49,6 +49,9 @@ namespace Card_Addiction_POS_System.Functions.Pricing
     /// </summary>
     public class FindPrice_TCG : IDisposable
     {
+        public const string PostLookupReviewPrompt =
+            "Price updated. Please review and set Agreed Price and Amount Traded, then click Add to Cart again.";
+
         private readonly int _timeoutSeconds;
         private readonly bool _headless;
         private bool _disposed;

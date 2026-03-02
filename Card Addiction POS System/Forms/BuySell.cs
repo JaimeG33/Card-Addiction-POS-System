@@ -199,6 +199,9 @@ namespace Card_Addiction_POS_System.Forms
                 var searchText = tbSearchBar.Text ?? string.Empty;
                 var refreshed = await _inventoryService.SearchInventoryAsync(cardGameId, searchText).ConfigureAwait(false);
 
+                var priceUpdatedMessage =
+                    $"Price updated to {newPrice.ToString("C2", CultureInfo.GetCultureInfo("en-US"))}.\n\n{FindPrice_TCG.PostLookupReviewPrompt}";
+
                 // Marshal UI updates (unchanged logic)
                 if (this.IsHandleCreated && this.InvokeRequired)
                 {
@@ -218,8 +221,7 @@ namespace Card_Addiction_POS_System.Forms
                             tbPrice.Text = _selectedInventoryItem.MktPrice.ToString("C2", CultureInfo.GetCultureInfo("en-US"));
                         }
 
-                        MessageBox.Show($"Price updated to {newPrice.ToString("C2", CultureInfo.GetCultureInfo("en-US"))}.",
-                            "Price Updated", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        MessageBox.Show(priceUpdatedMessage, "Price Updated", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     });
                 }
                 else
@@ -238,8 +240,7 @@ namespace Card_Addiction_POS_System.Forms
                         tbPrice.Text = _selectedInventoryItem.MktPrice.ToString("C2", CultureInfo.GetCultureInfo("en-US"));
                     }
 
-                    MessageBox.Show($"Price updated to {newPrice.ToString("C2", CultureInfo.GetCultureInfo("en-US"))}.",
-                        "Price Updated", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    MessageBox.Show(priceUpdatedMessage, "Price Updated", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
 
                 return newPrice;
@@ -861,15 +862,15 @@ namespace Card_Addiction_POS_System.Forms
                 return;
             }
 
-            decimal? lookedUpPrice = null;
-
+            // If price is stale, refresh it and STOP here so user can re-confirm/edit values.
             if (!_selectedInventoryItem.PriceUp2Date)
             {
-                lookedUpPrice = await PriceLookupAndUpdate();
+                await PriceLookupAndUpdate();
+                return;
             }
 
             decimal agreedPrice = tbPrice.DecimalValue;
-            decimal timeMktPrice = lookedUpPrice ?? _selectedInventoryItem.MktPrice;
+            decimal timeMktPrice = _selectedInventoryItem.MktPrice;
 
             int amtTraded;
             try
@@ -887,7 +888,6 @@ namespace Card_Addiction_POS_System.Forms
                 return;
             }
 
-            // Use the numeric CardGameId from the control.
             int cardGameId = selectedGame.CardGameId;
 
             var line = new TransactionLineItem
@@ -902,13 +902,10 @@ namespace Card_Addiction_POS_System.Forms
                 AgreedPrice = agreedPrice,
                 AmtTraded = amtTraded,
                 AmtInStock = _selectedInventoryItem.AmtInStock,
-                BuyOrSell = true // true = sold to customer (old app default)
+                BuyOrSell = true
             };
 
-            // Add to cart UI
             _cartBinding.Add(line);
-
-            // Make finalize button visible/enabled in the UI if needed
             btnFinalizeSale.Visible = true;
         }
 
@@ -929,9 +926,6 @@ namespace Card_Addiction_POS_System.Forms
 
         }
 
-        private void cbCardGame_SelectedIndexChanged(object sender, EventArgs e)
-        {
-
-        }
+       
     }
 }

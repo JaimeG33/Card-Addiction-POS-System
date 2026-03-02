@@ -49,11 +49,10 @@
             sfDataGrid_CartSummary = new Syncfusion.WinForms.DataGrid.SfDataGrid();
             tableLayoutPanel3 = new TableLayoutPanel();
             flowLayoutPanel1 = new FlowLayoutPanel();
-            cbCardGame = new ComboBox();
+            selectCardGameControl1 = new Card_Addiction_POS_System.Forms.Controls.SelectCardGameControl();
             tbSearchBar = new TextBox();
             btnSearch = new Button();
             sfDataGrid_InvLookup = new Syncfusion.WinForms.DataGrid.SfDataGrid();
-            selectCardGameControl1 = new Card_Addiction_POS_System.Forms.Controls.SelectCardGameControl();
             tableLayoutPanel1.SuspendLayout();
             tableLayoutPanel2.SuspendLayout();
             tLP_img.SuspendLayout();
@@ -73,10 +72,11 @@
             // 
             headerControl1.BackColor = SystemColors.ActiveBorder;
             headerControl1.Dock = DockStyle.Top;
-            headerControl1.Location = new Point(2, 2);
-            headerControl1.MaximumSize = new Size(0, 110);
+            headerControl1.Location = new Point(2, 3);
+            headerControl1.Margin = new Padding(3, 5, 3, 5);
+            headerControl1.MaximumSize = new Size(0, 147);
             headerControl1.Name = "headerControl1";
-            headerControl1.Size = new Size(1190, 110);
+            headerControl1.Size = new Size(1360, 147);
             headerControl1.TabIndex = 0;
             headerControl1.Load += headerControl1_Load;
             // 
@@ -88,11 +88,12 @@
             tableLayoutPanel1.Controls.Add(tableLayoutPanel2, 0, 0);
             tableLayoutPanel1.Controls.Add(tableLayoutPanel3, 1, 0);
             tableLayoutPanel1.Dock = DockStyle.Fill;
-            tableLayoutPanel1.Location = new Point(2, 112);
+            tableLayoutPanel1.Location = new Point(2, 150);
+            tableLayoutPanel1.Margin = new Padding(3, 4, 3, 4);
             tableLayoutPanel1.Name = "tableLayoutPanel1";
             tableLayoutPanel1.RowCount = 1;
             tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-            tableLayoutPanel1.Size = new Size(1190, 527);
+            tableLayoutPanel1.Size = new Size(1360, 699);
             tableLayoutPanel1.TabIndex = 1;
             // 
             // tableLayoutPanel2
@@ -102,13 +103,14 @@
             tableLayoutPanel2.Controls.Add(tLP_img, 0, 0);
             tableLayoutPanel2.Controls.Add(tableLayoutPanel4, 0, 1);
             tableLayoutPanel2.Dock = DockStyle.Fill;
-            tableLayoutPanel2.Location = new Point(3, 3);
+            tableLayoutPanel2.Location = new Point(3, 4);
+            tableLayoutPanel2.Margin = new Padding(3, 4, 3, 4);
             tableLayoutPanel2.Name = "tableLayoutPanel2";
             tableLayoutPanel2.RowCount = 2;
             tableLayoutPanel2.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
             tableLayoutPanel2.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
-            tableLayoutPanel2.RowStyles.Add(new RowStyle(SizeType.Absolute, 20F));
-            tableLayoutPanel2.Size = new Size(470, 521);
+            tableLayoutPanel2.RowStyles.Add(new RowStyle(SizeType.Absolute, 27F));
+            tableLayoutPanel2.Size = new Size(538, 691);
             tableLayoutPanel2.TabIndex = 0;
             // 
             // tLP_img
@@ -119,22 +121,24 @@
             tLP_img.Controls.Add(imgCardUrl, 0, 0);
             tLP_img.Controls.Add(panel1, 1, 0);
             tLP_img.Dock = DockStyle.Fill;
-            tLP_img.Location = new Point(3, 3);
+            tLP_img.Location = new Point(3, 4);
+            tLP_img.Margin = new Padding(3, 4, 3, 4);
             tLP_img.Name = "tLP_img";
-            tLP_img.Padding = new Padding(3);
+            tLP_img.Padding = new Padding(3, 4, 3, 4);
             tLP_img.RowCount = 1;
             tLP_img.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
             tLP_img.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
-            tLP_img.Size = new Size(464, 254);
+            tLP_img.Size = new Size(532, 337);
             tLP_img.TabIndex = 0;
             // 
             // imgCardUrl
             // 
             imgCardUrl.BorderStyle = BorderStyle.FixedSingle;
             imgCardUrl.Dock = DockStyle.Fill;
-            imgCardUrl.Location = new Point(6, 6);
+            imgCardUrl.Location = new Point(6, 8);
+            imgCardUrl.Margin = new Padding(3, 4, 3, 4);
             imgCardUrl.Name = "imgCardUrl";
-            imgCardUrl.Size = new Size(223, 242);
+            imgCardUrl.Size = new Size(257, 321);
             imgCardUrl.SizeMode = PictureBoxSizeMode.StretchImage;
             imgCardUrl.TabIndex = 0;
             imgCardUrl.TabStop = false;
@@ -152,17 +156,18 @@
             panel1.Controls.Add(lblMktPrice);
             panel1.Controls.Add(lblInStock);
             panel1.Dock = DockStyle.Fill;
-            panel1.Location = new Point(235, 6);
+            panel1.Location = new Point(269, 8);
+            panel1.Margin = new Padding(3, 4, 3, 4);
             panel1.Name = "panel1";
-            panel1.Size = new Size(223, 242);
+            panel1.Size = new Size(257, 321);
             panel1.TabIndex = 1;
             // 
             // lblAmt
             // 
             lblAmt.AutoSize = true;
-            lblAmt.Location = new Point(118, 55);
+            lblAmt.Location = new Point(135, 73);
             lblAmt.Name = "lblAmt";
-            lblAmt.Size = new Size(54, 15);
+            lblAmt.Size = new Size(65, 20);
             lblAmt.TabIndex = 8;
             lblAmt.Text = "Amount:";
             // 
@@ -170,16 +175,17 @@
             // 
             lblAmtInStock.AutoSize = true;
             lblAmtInStock.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            lblAmtInStock.Location = new Point(116, 7);
+            lblAmtInStock.Location = new Point(133, 9);
             lblAmtInStock.Name = "lblAmtInStock";
-            lblAmtInStock.Size = new Size(0, 21);
+            lblAmtInStock.Size = new Size(0, 28);
             lblAmtInStock.TabIndex = 7;
             // 
             // btnFinalizeSale
             // 
-            btnFinalizeSale.Location = new Point(117, 195);
+            btnFinalizeSale.Location = new Point(134, 260);
+            btnFinalizeSale.Margin = new Padding(3, 4, 3, 4);
             btnFinalizeSale.Name = "btnFinalizeSale";
-            btnFinalizeSale.Size = new Size(86, 23);
+            btnFinalizeSale.Size = new Size(98, 31);
             btnFinalizeSale.TabIndex = 6;
             btnFinalizeSale.Text = "Finalize Sale";
             btnFinalizeSale.UseVisualStyleBackColor = true;
@@ -189,17 +195,18 @@
             // 
             lblSaleInfo.AutoSize = true;
             lblSaleInfo.Font = new Font("Segoe UI", 9.75F, FontStyle.Regular, GraphicsUnit.Point, 0);
-            lblSaleInfo.Location = new Point(12, 197);
+            lblSaleInfo.Location = new Point(14, 263);
             lblSaleInfo.Name = "lblSaleInfo";
-            lblSaleInfo.Size = new Size(61, 17);
+            lblSaleInfo.Size = new Size(80, 23);
             lblSaleInfo.TabIndex = 5;
             lblSaleInfo.Text = "Sale Info:";
             // 
             // btnAddCt
             // 
-            btnAddCt.Location = new Point(12, 114);
+            btnAddCt.Location = new Point(14, 152);
+            btnAddCt.Margin = new Padding(3, 4, 3, 4);
             btnAddCt.Name = "btnAddCt";
-            btnAddCt.Size = new Size(86, 23);
+            btnAddCt.Size = new Size(98, 31);
             btnAddCt.TabIndex = 4;
             btnAddCt.Text = "Add to Cart";
             btnAddCt.UseVisualStyleBackColor = true;
@@ -208,22 +215,24 @@
             // tbAmtTraded
             // 
             tbAmtTraded.AccessibilityEnabled = true;
-            tbAmtTraded.BeforeTouchSize = new Size(29, 23);
+            tbAmtTraded.BeforeTouchSize = new Size(114, 27);
             tbAmtTraded.IntegerValue = 1L;
-            tbAmtTraded.Location = new Point(132, 73);
+            tbAmtTraded.Location = new Point(151, 97);
+            tbAmtTraded.Margin = new Padding(3, 4, 3, 4);
             tbAmtTraded.Name = "tbAmtTraded";
-            tbAmtTraded.Size = new Size(29, 23);
+            tbAmtTraded.Size = new Size(33, 27);
             tbAmtTraded.TabIndex = 3;
             tbAmtTraded.Text = "1";
             // 
             // tbPrice
             // 
             tbPrice.AccessibilityEnabled = true;
-            tbPrice.BeforeTouchSize = new Size(29, 23);
+            tbPrice.BeforeTouchSize = new Size(114, 27);
             tbPrice.DecimalValue = new decimal(new int[] { 100, 0, 0, 131072 });
-            tbPrice.Location = new Point(12, 73);
+            tbPrice.Location = new Point(14, 97);
+            tbPrice.Margin = new Padding(3, 4, 3, 4);
             tbPrice.Name = "tbPrice";
-            tbPrice.Size = new Size(100, 23);
+            tbPrice.Size = new Size(114, 27);
             tbPrice.TabIndex = 2;
             tbPrice.Text = "$1.00";
             tbPrice.TextChanged += tbPrice_TextChanged;
@@ -231,9 +240,9 @@
             // lblMktPrice
             // 
             lblMktPrice.AutoSize = true;
-            lblMktPrice.Location = new Point(12, 55);
+            lblMktPrice.Location = new Point(14, 73);
             lblMktPrice.Name = "lblMktPrice";
-            lblMktPrice.Size = new Size(76, 15);
+            lblMktPrice.Size = new Size(94, 20);
             lblMktPrice.TabIndex = 1;
             lblMktPrice.Text = "Market Price:";
             // 
@@ -241,9 +250,9 @@
             // 
             lblInStock.AutoSize = true;
             lblInStock.Font = new Font("Segoe UI", 9.75F, FontStyle.Regular, GraphicsUnit.Point, 0);
-            lblInStock.Location = new Point(5, 9);
+            lblInStock.Location = new Point(6, 12);
             lblInStock.Name = "lblInStock";
-            lblInStock.Size = new Size(105, 17);
+            lblInStock.Size = new Size(141, 23);
             lblInStock.TabIndex = 0;
             lblInStock.Text = "Amount In Stock:";
             // 
@@ -254,12 +263,13 @@
             tableLayoutPanel4.Controls.Add(sfDataGrid_Cart, 0, 0);
             tableLayoutPanel4.Controls.Add(sfDataGrid_CartSummary, 0, 1);
             tableLayoutPanel4.Dock = DockStyle.Fill;
-            tableLayoutPanel4.Location = new Point(3, 263);
+            tableLayoutPanel4.Location = new Point(3, 349);
+            tableLayoutPanel4.Margin = new Padding(3, 4, 3, 4);
             tableLayoutPanel4.Name = "tableLayoutPanel4";
             tableLayoutPanel4.RowCount = 2;
             tableLayoutPanel4.RowStyles.Add(new RowStyle(SizeType.Percent, 65F));
             tableLayoutPanel4.RowStyles.Add(new RowStyle(SizeType.Percent, 35F));
-            tableLayoutPanel4.Size = new Size(464, 255);
+            tableLayoutPanel4.Size = new Size(532, 338);
             tableLayoutPanel4.TabIndex = 1;
             // 
             // sfDataGrid_Cart
@@ -267,17 +277,14 @@
             sfDataGrid_Cart.AccessibleName = "Table";
             sfDataGrid_Cart.BackColor = Color.SkyBlue;
             sfDataGrid_Cart.Dock = DockStyle.Fill;
-            sfDataGrid_Cart.Location = new Point(3, 3);
+            sfDataGrid_Cart.Location = new Point(3, 4);
+            sfDataGrid_Cart.Margin = new Padding(3, 4, 3, 4);
             sfDataGrid_Cart.Name = "sfDataGrid_Cart";
-            sfDataGrid_Cart.Size = new Size(458, 159);
+            sfDataGrid_Cart.PreviewRowHeight = 35;
+            sfDataGrid_Cart.Size = new Size(526, 211);
             sfDataGrid_Cart.Style.BorderColor = Color.FromArgb(100, 100, 100);
-            sfDataGrid_Cart.Style.CheckBoxStyle.CheckedBackColor = Color.FromArgb(0, 120, 215);
-            sfDataGrid_Cart.Style.CheckBoxStyle.CheckedBorderColor = Color.FromArgb(0, 120, 215);
-            sfDataGrid_Cart.Style.CheckBoxStyle.IndeterminateBorderColor = Color.FromArgb(0, 120, 215);
             sfDataGrid_Cart.Style.DragPreviewRowStyle.Font = new Font("Segoe UI", 9F);
-            sfDataGrid_Cart.Style.DragPreviewRowStyle.RowCountIndicatorBackColor = Color.FromArgb(0, 120, 215);
             sfDataGrid_Cart.Style.DragPreviewRowStyle.RowCountIndicatorTextColor = Color.FromArgb(255, 255, 255);
-            sfDataGrid_Cart.Style.HyperlinkStyle.DefaultLinkColor = Color.FromArgb(0, 120, 215);
             sfDataGrid_Cart.TabIndex = 1;
             sfDataGrid_Cart.Text = "sfDataGrid1";
             sfDataGrid_Cart.Click += sfDataGrid_Cart_Click;
@@ -287,17 +294,14 @@
             sfDataGrid_CartSummary.AccessibleName = "Table";
             sfDataGrid_CartSummary.BackColor = Color.White;
             sfDataGrid_CartSummary.Dock = DockStyle.Fill;
-            sfDataGrid_CartSummary.Location = new Point(3, 168);
+            sfDataGrid_CartSummary.Location = new Point(3, 223);
+            sfDataGrid_CartSummary.Margin = new Padding(3, 4, 3, 4);
             sfDataGrid_CartSummary.Name = "sfDataGrid_CartSummary";
-            sfDataGrid_CartSummary.Size = new Size(458, 84);
+            sfDataGrid_CartSummary.PreviewRowHeight = 35;
+            sfDataGrid_CartSummary.Size = new Size(526, 111);
             sfDataGrid_CartSummary.Style.BorderColor = Color.FromArgb(100, 100, 100);
-            sfDataGrid_CartSummary.Style.CheckBoxStyle.CheckedBackColor = Color.FromArgb(0, 120, 215);
-            sfDataGrid_CartSummary.Style.CheckBoxStyle.CheckedBorderColor = Color.FromArgb(0, 120, 215);
-            sfDataGrid_CartSummary.Style.CheckBoxStyle.IndeterminateBorderColor = Color.FromArgb(0, 120, 215);
             sfDataGrid_CartSummary.Style.DragPreviewRowStyle.Font = new Font("Segoe UI", 9F);
-            sfDataGrid_CartSummary.Style.DragPreviewRowStyle.RowCountIndicatorBackColor = Color.FromArgb(0, 120, 215);
             sfDataGrid_CartSummary.Style.DragPreviewRowStyle.RowCountIndicatorTextColor = Color.FromArgb(255, 255, 255);
-            sfDataGrid_CartSummary.Style.HyperlinkStyle.DefaultLinkColor = Color.FromArgb(0, 120, 215);
             sfDataGrid_CartSummary.TabIndex = 2;
             sfDataGrid_CartSummary.Text = "Cart Summary";
             // 
@@ -308,51 +312,53 @@
             tableLayoutPanel3.Controls.Add(flowLayoutPanel1, 0, 0);
             tableLayoutPanel3.Controls.Add(sfDataGrid_InvLookup, 0, 1);
             tableLayoutPanel3.Dock = DockStyle.Fill;
-            tableLayoutPanel3.Location = new Point(479, 3);
+            tableLayoutPanel3.Location = new Point(547, 4);
+            tableLayoutPanel3.Margin = new Padding(3, 4, 3, 4);
             tableLayoutPanel3.Name = "tableLayoutPanel3";
             tableLayoutPanel3.RowCount = 2;
             tableLayoutPanel3.RowStyles.Add(new RowStyle(SizeType.Percent, 20F));
             tableLayoutPanel3.RowStyles.Add(new RowStyle(SizeType.Percent, 80F));
-            tableLayoutPanel3.Size = new Size(708, 521);
+            tableLayoutPanel3.Size = new Size(810, 691);
             tableLayoutPanel3.TabIndex = 1;
             // 
             // flowLayoutPanel1
             // 
-            flowLayoutPanel1.Controls.Add(cbCardGame);
             flowLayoutPanel1.Controls.Add(selectCardGameControl1);
             flowLayoutPanel1.Controls.Add(tbSearchBar);
             flowLayoutPanel1.Controls.Add(btnSearch);
             flowLayoutPanel1.Dock = DockStyle.Fill;
-            flowLayoutPanel1.Location = new Point(3, 3);
+            flowLayoutPanel1.Location = new Point(3, 4);
+            flowLayoutPanel1.Margin = new Padding(3, 4, 3, 4);
             flowLayoutPanel1.Name = "flowLayoutPanel1";
-            flowLayoutPanel1.Size = new Size(702, 98);
+            flowLayoutPanel1.Size = new Size(804, 130);
             flowLayoutPanel1.TabIndex = 0;
             // 
-            // cbCardGame
+            // selectCardGameControl1
             // 
-            cbCardGame.FormattingEnabled = true;
-            cbCardGame.Items.AddRange(new object[] { "Yugioh", "Magic", "Pokemon" });
-            cbCardGame.Location = new Point(3, 3);
-            cbCardGame.Name = "cbCardGame";
-            cbCardGame.Size = new Size(156, 23);
-            cbCardGame.TabIndex = 0;
-            cbCardGame.SelectedIndexChanged += cbCardGame_SelectedIndexChanged;
+            selectCardGameControl1.Location = new Point(3, 5);
+            selectCardGameControl1.Margin = new Padding(3, 5, 3, 5);
+            selectCardGameControl1.Name = "selectCardGameControl1";
+            selectCardGameControl1.SelectedCardGameId = -1;
+            selectCardGameControl1.Size = new Size(198, 35);
+            selectCardGameControl1.TabIndex = 3;
             // 
             // tbSearchBar
             // 
             tbSearchBar.Dock = DockStyle.Bottom;
-            tbSearchBar.Location = new Point(3, 35);
+            tbSearchBar.Location = new Point(3, 53);
+            tbSearchBar.Margin = new Padding(3, 4, 3, 4);
             tbSearchBar.Name = "tbSearchBar";
-            tbSearchBar.Size = new Size(609, 23);
+            tbSearchBar.Size = new Size(695, 27);
             tbSearchBar.TabIndex = 1;
             tbSearchBar.TextChanged += tbSearchBar_TextChanged;
             tbSearchBar.KeyDown += tbSearchBar_KeyDown;
             // 
             // btnSearch
             // 
-            btnSearch.Location = new Point(618, 35);
+            btnSearch.Location = new Point(704, 49);
+            btnSearch.Margin = new Padding(3, 4, 3, 4);
             btnSearch.Name = "btnSearch";
-            btnSearch.Size = new Size(75, 23);
+            btnSearch.Size = new Size(86, 31);
             btnSearch.TabIndex = 2;
             btnSearch.Text = "Search";
             btnSearch.UseVisualStyleBackColor = true;
@@ -364,39 +370,29 @@
             sfDataGrid_InvLookup.AllowResizingColumns = true;
             sfDataGrid_InvLookup.BackColor = Color.White;
             sfDataGrid_InvLookup.Dock = DockStyle.Fill;
-            sfDataGrid_InvLookup.Location = new Point(3, 107);
+            sfDataGrid_InvLookup.Location = new Point(3, 142);
+            sfDataGrid_InvLookup.Margin = new Padding(3, 4, 3, 4);
             sfDataGrid_InvLookup.Name = "sfDataGrid_InvLookup";
-            sfDataGrid_InvLookup.Size = new Size(702, 411);
+            sfDataGrid_InvLookup.PreviewRowHeight = 35;
+            sfDataGrid_InvLookup.Size = new Size(804, 545);
             sfDataGrid_InvLookup.Style.BorderColor = Color.FromArgb(100, 100, 100);
-            sfDataGrid_InvLookup.Style.CheckBoxStyle.CheckedBackColor = Color.FromArgb(0, 120, 215);
-            sfDataGrid_InvLookup.Style.CheckBoxStyle.CheckedBorderColor = Color.FromArgb(0, 120, 215);
-            sfDataGrid_InvLookup.Style.CheckBoxStyle.IndeterminateBorderColor = Color.FromArgb(0, 120, 215);
             sfDataGrid_InvLookup.Style.DragPreviewRowStyle.Font = new Font("Segoe UI", 9F);
-            sfDataGrid_InvLookup.Style.DragPreviewRowStyle.RowCountIndicatorBackColor = Color.FromArgb(0, 120, 215);
             sfDataGrid_InvLookup.Style.DragPreviewRowStyle.RowCountIndicatorTextColor = Color.FromArgb(255, 255, 255);
-            sfDataGrid_InvLookup.Style.HyperlinkStyle.DefaultLinkColor = Color.FromArgb(0, 120, 215);
             sfDataGrid_InvLookup.TabIndex = 1;
             sfDataGrid_InvLookup.Text = "sfDataGrid_InvLookup";
             sfDataGrid_InvLookup.SelectionChanged += sfDataGrid_InvLookup_SelectionChanged;
             sfDataGrid_InvLookup.CellClick += sfDataGrid_InvLookup_CellClick;
             sfDataGrid_InvLookup.Click += sfDataGrid_InvLookup_Click;
             // 
-            // selectCardGameControl1
-            // 
-            selectCardGameControl1.Location = new Point(165, 3);
-            selectCardGameControl1.Name = "selectCardGameControl1";
-            selectCardGameControl1.SelectedCardGameId = -1;
-            selectCardGameControl1.Size = new Size(173, 26);
-            selectCardGameControl1.TabIndex = 3;
-            // 
             // BuySell
             // 
-            AutoScaleDimensions = new SizeF(7F, 15F);
+            AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(1194, 641);
+            ClientSize = new Size(1364, 852);
             Controls.Add(tableLayoutPanel1);
             Controls.Add(headerControl1);
-            MinimumSize = new Size(1210, 680);
+            Margin = new Padding(3, 4, 3, 4);
+            MinimumSize = new Size(1380, 891);
             Name = "BuySell";
             Style.MdiChild.IconHorizontalAlignment = HorizontalAlignment.Center;
             Style.MdiChild.IconVerticalAlignment = System.Windows.Forms.VisualStyles.VerticalAlignment.Center;
@@ -440,7 +436,6 @@
         private TableLayoutPanel tableLayoutPanel3;
         private FlowLayoutPanel flowLayoutPanel1;
         private Syncfusion.WinForms.DataGrid.SfDataGrid sfDataGrid_InvLookup;
-        private ComboBox cbCardGame;
         private TextBox tbSearchBar;
         private Button btnSearch;
         private Label lblAmtInStock;
