@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
 using Card_Addiction_POS_System.Data.Settings;
+using System.IO;
 
 namespace Card_Addiction_POS_System.Data.SQLServer
 {
@@ -83,20 +84,36 @@ namespace Card_Addiction_POS_System.Data.SQLServer
                 using var conn = Create(username, password);
                 conn.Open();
 
-                // Set the shared username on successful connection
                 SetCurrentUsername(username);
 
                 message = $"Connected successfully as {username}.";
                 return true;
             }
-            catch (SqlException ex)
-            {
-                message = $"Connection failed: {ex.Message}";
-                return false;
-            }
             catch (Exception ex)
             {
-                message = $"Unexpected error: {ex.Message}";
+                var diagnosticsHeader =
+                    $"Host: {_settings.ServerHost}\n" +
+                    $"Port: {_settings.Port}\n" +
+                    $"Database: {_settings.Database}\n" +
+                    $"Encrypt: {_settings.Encrypt}\n" +
+                    $"TrustServerCertificate: {_settings.TrustServerCertificate}\n" +
+                    $"User: {username}\n";
+
+                var details = $"{diagnosticsHeader}\n{ex}";
+
+                var logDir = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    "Card_Addiction_POS_System",
+                    "Logs"
+                );
+                Directory.CreateDirectory(logDir);
+
+                var logPath = Path.Combine(logDir, $"sql_error_{DateTime.Now:yyyyMMdd_HHmmss}.txt");
+                File.WriteAllText(logPath, details, Encoding.UTF8);
+
+                ErrorDialog.Show(owner: null, title: "Database connection error", details: details);
+
+                message = $"Connection failed. Details saved to:\n{logPath}";
                 return false;
             }
         }

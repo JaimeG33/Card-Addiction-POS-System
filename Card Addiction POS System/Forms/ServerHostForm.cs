@@ -5,13 +5,15 @@ using Card_Addiction_POS_System.Data.Settings;
 namespace Card_Addiction_POS_System
 {
     /// <summary>
-    /// Small dialog to set/replace the SQL Server host (IPv4/hostname).
+    /// Small dialog to set/replace SQL Server connection settings.
     /// </summary>
     public sealed class ServerHostForm : Form
     {
         private readonly TextBox _tbHost = new() { Width = 260 };
         private readonly NumericUpDown _nudPort = new() { Minimum = 1, Maximum = 65535, Width = 100, Value = 1433 };
         private readonly TextBox _tbDb = new() { Width = 260 };
+        private readonly CheckBox _cbEncrypt = new() { Text = "Encrypt connection", AutoSize = true };
+        private readonly CheckBox _cbTrustServerCertificate = new() { Text = "Trust server certificate", AutoSize = true };
 
         private readonly Button _btnOk = new() { Text = "OK", Width = 90 };
         private readonly Button _btnCancel = new() { Text = "Cancel", Width = 90 };
@@ -28,7 +30,7 @@ namespace Card_Addiction_POS_System
             MaximizeBox = false;
             MinimizeBox = false;
             Width = 520;
-            Height = 240;
+            Height = 300;
 
             AcceptButton = _btnOk;
             CancelButton = _btnCancel;
@@ -36,6 +38,8 @@ namespace Card_Addiction_POS_System
             _tbHost.Text = current.ServerHost;
             _nudPort.Value = current.Port;
             _tbDb.Text = current.Database;
+            _cbEncrypt.Checked = current.Encrypt;
+            _cbTrustServerCertificate.Checked = current.TrustServerCertificate;
 
             BuildLayout();
             WireEvents();
@@ -51,17 +55,19 @@ namespace Card_Addiction_POS_System
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 2,
-                RowCount = 4,
+                RowCount = 6,
                 Padding = new Padding(12),
             };
 
             grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 160));
             grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
-            grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
-            grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
-            grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
-            grid.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 36)); // host
+            grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 36)); // port
+            grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 36)); // db
+            grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 32)); // encrypt
+            grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 32)); // trust cert
+            grid.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); // buttons
 
             grid.Controls.Add(lblHost, 0, 0);
             grid.Controls.Add(_tbHost, 1, 0);
@@ -74,6 +80,9 @@ namespace Card_Addiction_POS_System
             grid.Controls.Add(lblDb, 0, 2);
             grid.Controls.Add(_tbDb, 1, 2);
 
+            grid.Controls.Add(_cbEncrypt, 1, 3);
+            grid.Controls.Add(_cbTrustServerCertificate, 1, 4);
+
             var buttons = new FlowLayoutPanel
             {
                 Dock = DockStyle.Fill,
@@ -83,7 +92,7 @@ namespace Card_Addiction_POS_System
             buttons.Controls.Add(_btnOk);
             buttons.Controls.Add(_btnCancel);
 
-            grid.Controls.Add(buttons, 1, 3);
+            grid.Controls.Add(buttons, 1, 5);
 
             Controls.Add(grid);
         }
@@ -112,7 +121,15 @@ namespace Card_Addiction_POS_System
                     return;
                 }
 
-                Result = Result with { ServerHost = host, Port = port, Database = db };
+                Result = Result with
+                {
+                    ServerHost = host,
+                    Port = port,
+                    Database = db,
+                    Encrypt = _cbEncrypt.Checked,
+                    TrustServerCertificate = _cbTrustServerCertificate.Checked
+                };
+
                 DialogResult = DialogResult.OK;
             };
         }
