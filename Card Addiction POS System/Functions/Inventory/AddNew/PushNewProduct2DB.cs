@@ -251,6 +251,30 @@ WHERE src.cardGameId = @cardGameId
             await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
         }
 
+        private static async Task<bool> TargetTableHasColumnAsync(
+            SqlConnection conn,
+            SqlTransaction tx,
+            string tableName,
+            string columnName,
+            CancellationToken ct)
+        {
+            const string sql = @"
+SELECT TOP (1) 1
+FROM sys.columns c
+INNER JOIN sys.tables t ON t.object_id = c.object_id
+INNER JOIN sys.schemas s ON s.schema_id = t.schema_id
+WHERE s.name = 'dbo'
+  AND t.name = @tableName
+  AND c.name = @columnName;";
+
+            using var cmd = new SqlCommand(sql, conn, tx);
+            cmd.Parameters.Add("@tableName", SqlDbType.NVarChar, 128).Value = tableName;
+            cmd.Parameters.Add("@columnName", SqlDbType.NVarChar, 128).Value = columnName;
+
+            var result = await cmd.ExecuteScalarAsync(ct).ConfigureAwait(false);
+            return result != null && result != DBNull.Value;
+        }
+
         private static async Task InsertInventoryAsync(
             SqlConnection conn,
             SqlTransaction tx,
@@ -258,20 +282,26 @@ WHERE src.cardGameId = @cardGameId
             CancellationToken ct)
         {
             var invTable = GetInventoryTableName(game);
+            var hasAbbreviation = await TargetTableHasColumnAsync(conn, tx, invTable, "abbreviation", ct).ConfigureAwait(false);
+
+            var abbreviationInsertColumn = hasAbbreviation ? ", abbreviation" : string.Empty;
+            var abbreviationSelectColumn = hasAbbreviation
+                ? ", NULLIF(LTRIM(RTRIM(src.abbreviation)), '') AS abbreviation"
+                : string.Empty;
 
             var sql = $@"
 INSERT INTO dbo.[{invTable}]
-    (cardId, cardGameId, setId, conditionId, cardName, rarity, mktPrice, amtInStock, imageURL, mktPriceURL)
+    (cardId, cardGameId, setId, conditionId, cardName, rarity, mktPrice, amtInStock, imageURL, mktPriceURL{abbreviationInsertColumn})
 SELECT src.cardId,
        src.cardGameId,
        src.setId,
-       COALESCE(src.conditionId, 0) AS conditionId,  -- force 0 when null
+       COALESCE(src.conditionId, 0) AS conditionId,
        src.cardName,
        src.rarity,
        src.mktPrice,
        src.amtInStock,
        src.imageURL,
-       src.mktPriceURL
+       src.mktPriceURL{abbreviationSelectColumn}
 FROM dbo.NewTempCardgameInventory AS src
 WHERE src.cardGameId = @cardGameId
   AND (src.approved = 1 OR src.approved IS NULL)
