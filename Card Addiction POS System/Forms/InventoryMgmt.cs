@@ -526,7 +526,32 @@ namespace Card_Addiction_POS_System.Forms
 
         private void btnUpdateAll_Click(object sender, EventArgs e)
         {
+            if (_selectedInventoryItem == null)
+            {
+                MessageBox.Show("Please select an item first.", "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
 
+            var amountChanged = tbAmtTraded.IntegerValue != _selectedInventoryItem.AmtInStock;
+            var priceChanged = tbPrice.DecimalValue != _selectedInventoryItem.MktPrice;
+
+            if (!amountChanged && !priceChanged)
+            {
+                MessageBox.Show("No changes detected to update.", "Nothing to Update", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            // Update amount first (if changed)
+            if (amountChanged)
+            {
+                btnUpdateAmt_Click(this, EventArgs.Empty);
+            }
+
+            // Update price second (if changed)
+            if (priceChanged)
+            {
+                btnSetPrice_Click(this, EventArgs.Empty);
+            }
         }
 
         private async void btnSetPrice_Click(object sender, EventArgs e)
