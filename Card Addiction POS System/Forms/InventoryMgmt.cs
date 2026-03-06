@@ -354,8 +354,13 @@ namespace Card_Addiction_POS_System.Forms
                     return finder.GetMarketPrice(url);
                 });
 
-                // 2) Persist new price to database (pass numeric cardGameId)
-                await _inventoryService.UpdatePriceAsync(cardGameId, selectedCardId, newPrice);
+                // 2) Persist fetched price + mark up-to-date through pricing class
+                var settingsStore = new JsonSettingsStore(AppPaths.SettingsPath);
+                var appSettings = settingsStore.Load();
+                var connectionFactory = new SqlConnectionFactory(appSettings);
+                var updater = new SetCustomMktPrice_Inventory(connectionFactory, Session.PasswordProvider.GetPasswordAsync);
+
+                await updater.SetFetchedPriceAsync(cardGameId, selectedCardId, _selectedInventoryItem.CardName, newPrice);
 
                 // 3) Refresh current search results (preserve filter)
                 var searchText = tbSearchBar.Text ?? string.Empty;

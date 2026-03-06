@@ -10,6 +10,7 @@ namespace Card_Addiction_POS_System.Functions.Pricing
 {
     /// <summary>
     /// Updates a single inventory row's market price based on user-selected form values.
+    /// Also marks priceUp2Date = true when the update succeeds.
     /// </summary>
     internal sealed class SetCustomMktPrice_Inventory
     {
@@ -26,6 +27,33 @@ namespace Card_Addiction_POS_System.Functions.Pricing
         /// Set a custom market price for a single card row and return a user-friendly success message.
         /// </summary>
         public async Task<string> SetCustomPriceAsync(int cardGameId, int cardId, string cardName, decimal newMktPrice)
+        {
+            await UpdatePriceAndMarkUpToDateAsync(cardGameId, cardId, newMktPrice).ConfigureAwait(false);
+
+            if (!SelectedCardGameLogic.TryGetById(cardGameId, out var game))
+            {
+                throw new ArgumentException("Invalid card game selection.", nameof(cardGameId));
+            }
+
+            return $"Changed the mkt price of {cardName} to {newMktPrice.ToString("C2", CultureInfo.GetCultureInfo("en-US"))} in the {game.DatabaseName} inventory.";
+        }
+
+        /// <summary>
+        /// Set a fetched market price for a single card row and return a user-friendly success message.
+        /// </summary>
+        public async Task<string> SetFetchedPriceAsync(int cardGameId, int cardId, string cardName, decimal fetchedMktPrice)
+        {
+            await UpdatePriceAndMarkUpToDateAsync(cardGameId, cardId, fetchedMktPrice).ConfigureAwait(false);
+
+            if (!SelectedCardGameLogic.TryGetById(cardGameId, out var game))
+            {
+                throw new ArgumentException("Invalid card game selection.", nameof(cardGameId));
+            }
+
+            return $"Fetched and updated {cardName} to {fetchedMktPrice.ToString("C2", CultureInfo.GetCultureInfo("en-US"))} in the {game.DatabaseName} inventory.";
+        }
+
+        private async Task UpdatePriceAndMarkUpToDateAsync(int cardGameId, int cardId, decimal newMktPrice)
         {
             if (!SelectedCardGameLogic.TryGetById(cardGameId, out var game))
             {
@@ -73,8 +101,6 @@ namespace Card_Addiction_POS_System.Functions.Pricing
             {
                 throw new InvalidOperationException("No inventory row was updated. Verify the selected card still exists.");
             }
-
-            return $"Changed the mkt price of {cardName} to {newMktPrice.ToString("C2", CultureInfo.GetCultureInfo("en-US"))} in the {game.DatabaseName} inventory.";
         }
     }
 }
