@@ -53,10 +53,90 @@ namespace Card_Addiction_POS_System.Forms
             // Ensure we receive selection notifications from the grid
             sfDataGrid_InvLookup.SelectionChanged += sfDataGrid_InvLookup_SelectionChanged;
 
-            // Configure cart grid to show current cart contents
-            // Use a BindingList so the grid updates when items are added/removed.
-            sfDataGrid_Cart.AutoGenerateColumns = true;
+            ConfigureCartGrid();
+        }
+
+        private void ConfigureCartGrid()
+        {
+            sfDataGrid_Cart.AutoGenerateColumns = false;
             sfDataGrid_Cart.AllowEditing = false;
+            sfDataGrid_Cart.AllowSorting = true;
+            sfDataGrid_Cart.AutoSizeColumnsMode = AutoSizeColumnsMode.Fill;
+            sfDataGrid_Cart.Columns.Clear();
+
+            sfDataGrid_Cart.Columns.Add(new GridTextColumn
+            {
+                MappingName = nameof(TransactionLineItem.CardName),
+                HeaderText = "Card Name",
+                Width = 280,
+                MinimumWidth = 180
+            });
+
+            sfDataGrid_Cart.Columns.Add(new GridTextColumn
+            {
+                MappingName = nameof(TransactionLineItem.Rarity),
+                HeaderText = "Rarity",
+                Width = 120,
+                MinimumWidth = 80
+            });
+
+            sfDataGrid_Cart.Columns.Add(new GridNumericColumn
+            {
+                MappingName = nameof(TransactionLineItem.SetId),
+                HeaderText = "Set",
+                Width = 80,
+                MinimumWidth = 60,
+                NumberFormatInfo = new NumberFormatInfo { NumberDecimalDigits = 0, NumberGroupSeparator = string.Empty }
+            });
+
+            sfDataGrid_Cart.Columns.Add(new GridNumericColumn
+            {
+                MappingName = nameof(TransactionLineItem.AmtTraded),
+                HeaderText = "Qty",
+                Width = 80,
+                MinimumWidth = 60,
+                NumberFormatInfo = new NumberFormatInfo { NumberDecimalDigits = 0, NumberGroupSeparator = string.Empty }
+            });
+
+            sfDataGrid_Cart.Columns.Add(new GridNumericColumn
+            {
+                MappingName = nameof(TransactionLineItem.AmtInStock),
+                HeaderText = "In Stock",
+                Width = 95,
+                MinimumWidth = 75,
+                NumberFormatInfo = new NumberFormatInfo { NumberDecimalDigits = 0, NumberGroupSeparator = string.Empty }
+            });
+
+            // New visible cart column
+            sfDataGrid_Cart.Columns.Add(new GridNumericColumn
+            {
+                MappingName = nameof(TransactionLineItem.AmtInCase),
+                HeaderText = "In Case",
+                Width = 95,
+                MinimumWidth = 75,
+                NumberFormatInfo = new NumberFormatInfo { NumberDecimalDigits = 0, NumberGroupSeparator = string.Empty }
+            });
+
+            sfDataGrid_Cart.Columns.Add(new GridNumericColumn
+            {
+                MappingName = nameof(TransactionLineItem.TimeMktPrice),
+                HeaderText = "Market",
+                Width = 100,
+                MinimumWidth = 80,
+                FormatMode = FormatMode.Currency,
+                NumberFormatInfo = new NumberFormatInfo { CurrencyDecimalDigits = 2, CurrencySymbol = "$" }
+            });
+
+            sfDataGrid_Cart.Columns.Add(new GridNumericColumn
+            {
+                MappingName = nameof(TransactionLineItem.AgreedPrice),
+                HeaderText = "Agreed",
+                Width = 100,
+                MinimumWidth = 80,
+                FormatMode = FormatMode.Currency,
+                NumberFormatInfo = new NumberFormatInfo { CurrencyDecimalDigits = 2, CurrencySymbol = "$" }
+            });
+
             sfDataGrid_Cart.DataSource = _cartBinding;
         }
 
@@ -905,6 +985,7 @@ namespace Card_Addiction_POS_System.Forms
                 AgreedPrice = agreedPrice,
                 AmtTraded = amtTraded,
                 AmtInStock = _selectedInventoryItem.AmtInStock,
+                AmtInCase = _selectedInventoryItem.AMtInCase,
                 BuyOrSell = true
             };
 

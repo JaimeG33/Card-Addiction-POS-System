@@ -21,6 +21,10 @@ namespace Card_Addiction_POS_System.Functions.Models
         public decimal AgreedPrice { get; set; }
         public int AmtTraded { get; set; }
         public int AmtInStock { get; set; }
+
+        // Added for cart display/reference in future logic
+        public int AmtInCase { get; set; }
+
         public bool BuyOrSell { get; set; } //True = Sold to customer, False = Store bought card from customer (set to True for now)
         public string Rarity { get; set; }
     }
