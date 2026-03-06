@@ -35,6 +35,7 @@
             tLP_img = new TableLayoutPanel();
             imgCardUrl = new PictureBox();
             panel1 = new Panel();
+            btnPrintCart = new Button();
             lblAmt = new Label();
             lblAmtInStock = new Label();
             btnFinalizeSale = new Button();
@@ -53,7 +54,6 @@
             tbSearchBar = new TextBox();
             btnSearch = new Button();
             sfDataGrid_InvLookup = new Syncfusion.WinForms.DataGrid.SfDataGrid();
-            btnPrintCart = new Button();
             tableLayoutPanel1.SuspendLayout();
             tableLayoutPanel2.SuspendLayout();
             tLP_img.SuspendLayout();
@@ -163,6 +163,17 @@
             panel1.Name = "panel1";
             panel1.Size = new Size(257, 322);
             panel1.TabIndex = 1;
+            // 
+            // btnPrintCart
+            // 
+            btnPrintCart.Location = new Point(14, 191);
+            btnPrintCart.Margin = new Padding(3, 4, 3, 4);
+            btnPrintCart.Name = "btnPrintCart";
+            btnPrintCart.Size = new Size(133, 31);
+            btnPrintCart.TabIndex = 9;
+            btnPrintCart.Text = "Print Current Cart";
+            btnPrintCart.UseVisualStyleBackColor = true;
+            btnPrintCart.Click += btnPrintCart_Click;
             // 
             // lblAmt
             // 
@@ -385,16 +396,6 @@
             sfDataGrid_InvLookup.SelectionChanged += sfDataGrid_InvLookup_SelectionChanged;
             sfDataGrid_InvLookup.CellClick += sfDataGrid_InvLookup_CellClick;
             sfDataGrid_InvLookup.Click += sfDataGrid_InvLookup_Click;
-            // 
-            // btnPrintCart
-            // 
-            btnPrintCart.Location = new Point(14, 191);
-            btnPrintCart.Margin = new Padding(3, 4, 3, 4);
-            btnPrintCart.Name = "btnPrintCart";
-            btnPrintCart.Size = new Size(133, 31);
-            btnPrintCart.TabIndex = 9;
-            btnPrintCart.Text = "Print Current Cart";
-            btnPrintCart.UseVisualStyleBackColor = true;
             // 
             // BuySell
             // 

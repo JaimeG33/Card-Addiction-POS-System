@@ -1010,6 +1010,34 @@ namespace Card_Addiction_POS_System.Forms
 
         }
 
-       
+        private async void btnPrintCart_Click(object sender, EventArgs e)
+        {
+            if (_cartBinding.Count == 0)
+            {
+                MessageBox.Show("Cart is empty. Add items before printing.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var selectedGame = selectCardGameControl1.SelectedGame;
+            if (selectedGame == null)
+            {
+                MessageBox.Show("Please select a card game.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            try
+            {
+                var settingsStore = new JsonSettingsStore(AppPaths.SettingsPath);
+                var appSettings = settingsStore.Load();
+                var connectionFactory = new SqlConnectionFactory(appSettings);
+
+                var printer = new PrintCart(connectionFactory, Session.PasswordProvider.GetPasswordAsync);
+                await printer.PrintCartAsync(this, selectedGame, _cartBinding.ToList());
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Print failed: {ex.Message}", "Print Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
     }
 }
