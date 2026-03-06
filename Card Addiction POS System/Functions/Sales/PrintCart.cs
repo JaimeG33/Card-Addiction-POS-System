@@ -381,12 +381,68 @@ WHERE s.name = 'dbo'
         /// </summary>
         private static void PrintWithDialog(IWin32Window? owner, string documentName, IReadOnlyList<string> lines)
         {
-            using var printDoc = new PrintDocument();
-            printDoc.DocumentName = documentName;
+            using var printDoc = CreatePrintDocument(documentName, lines);
 
-            // Tracks where we are across multiple printed pages.
+            // 1) Show preview first.
+            using var previewDialog = new PrintPreviewDialog
+            {
+                Document = printDoc,
+                Width = 1100,
+                Height = 800,
+                UseAntiAlias = true
+            };
+
+            if (owner == null)
+            {
+                previewDialog.ShowDialog();
+            }
+            else
+            {
+                previewDialog.ShowDialog(owner);
+            }
+
+            // 2) Ask whether to continue to printer selection.
+            var continueToPrint = MessageBox.Show(
+                owner,
+                "Proceed to print this cart list?",
+                "Print Confirmation",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question) == DialogResult.Yes;
+
+            if (!continueToPrint)
+            {
+                return;
+            }
+
+            // 3) Show standard Windows print dialog.
+            using var printDialog = new PrintDialog
+            {
+                UseEXDialog = true,
+                Document = printDoc
+            };
+
+            var result = owner == null ? printDialog.ShowDialog() : printDialog.ShowDialog(owner);
+            if (result == DialogResult.OK)
+            {
+                printDoc.Print();
+            }
+        }
+
+        private static PrintDocument CreatePrintDocument(string documentName, IReadOnlyList<string> lines)
+        {
+            var printDoc = new PrintDocument
+            {
+                DocumentName = documentName
+            };
+
+            // Track print position per print job (preview and actual print are separate jobs).
             var lineIndex = 0;
             var printFont = new Font("Consolas", 10f);
+
+            printDoc.BeginPrint += (_, _) =>
+            {
+                lineIndex = 0;
+            };
 
             printDoc.PrintPage += (_, e) =>
             {
@@ -401,23 +457,16 @@ WHERE s.name = 'dbo'
                     y += lineHeight;
                 }
 
-                // Continue printing if there are remaining lines.
                 e.HasMorePages = lineIndex < lines.Count;
             };
 
-            using var printDialog = new PrintDialog
+            // Dispose font when document is disposed.
+            printDoc.Disposed += (_, _) =>
             {
-                UseEXDialog = true,
-                Document = printDoc
+                printFont.Dispose();
             };
 
-            var result = owner == null ? printDialog.ShowDialog() : printDialog.ShowDialog(owner);
-            if (result == DialogResult.OK)
-            {
-                printDoc.Print();
-            }
-
-            printFont.Dispose();
+            return printDoc;
         }
 
         /// <summary>
