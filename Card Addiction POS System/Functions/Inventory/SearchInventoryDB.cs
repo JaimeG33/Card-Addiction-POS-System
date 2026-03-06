@@ -116,36 +116,25 @@ namespace Card_Addiction_POS_System.Functions.Inventory
                 var tableName = string.Concat(game.DatabaseName, "Inventory");
 
                 var baseQuery =
-                    $@"SELECT cardName, COALESCE(abbreviation, '') AS abbreviation, rarity, setId, mktPrice, conditionId, amtInStock, 
-                     priceUp2Date, imageURL, mktPriceURL, cardId, amtInCase
+                    $@"SELECT cardName, COALESCE(abbreviation, '') AS abbreviation, rarity, setId, mktPrice, conditionId, amtInStock, amtInCase, 
+                     priceUp2Date, imageURL, mktPriceURL, cardId
                     FROM {tableName}
                     WHERE cardName LIKE @cardName
                     ORDER BY cardName;";
 
                 var results = new List<InventoryItem>();
 
-                // Obtain password on-demand (e.g. from prompt, credential manager, vault)
-                // Important: do not store this password longer than necessary.
                 var password = await _getPasswordAsync().ConfigureAwait(false);
-
-                // Create connection for the current user using the password provided at runtime.
                 using var conn = _connection_factory_create_for_current_user_guard(password);
-
-                // Optionally clear local password reference as soon as practical:
                 password = string.Empty;
 
                 await conn.OpenAsync().ConfigureAwait(false);
 
                 using var cmd = new SqlCommand(baseQuery, conn);
-
-                // Use explicit parameter type to avoid AddWithValue pitfalls
-                // (AddWithValue may infer types incorrectly in some cases, leading to suboptimal plans).
                 cmd.Parameters.Add("@cardName", SqlDbType.NVarChar, 256).Value = "%" + searchText.Trim() + "%";
 
-                // Execute reader with CloseConnection flag so disposing the reader closes the connection too.
                 using var reader = await cmd.ExecuteReaderAsync(CommandBehavior.CloseConnection).ConfigureAwait(false);
 
-                // Cache ordinals for performance and clarity: using ordinals avoids repeated string lookups and slightly faster access.
                 var ordCardName = reader.GetOrdinal("cardName");
                 var ordAbbreviation = reader.GetOrdinal("abbreviation");
                 var ordRarity = reader.GetOrdinal("rarity");
@@ -153,6 +142,7 @@ namespace Card_Addiction_POS_System.Functions.Inventory
                 var ordMktPrice = reader.GetOrdinal("mktPrice");
                 var ordConditionId = reader.GetOrdinal("conditionId");
                 var ordAmtInStock = reader.GetOrdinal("amtInStock");
+                var ordAmtInCase = reader.GetOrdinal("amtInCase");
                 var ordPriceUp2Date = reader.GetOrdinal("priceUp2Date");
                 var ordImageUrl = reader.GetOrdinal("imageURL");
                 var ordMktPriceUrl = reader.GetOrdinal("mktPriceURL");
@@ -160,14 +150,12 @@ namespace Card_Addiction_POS_System.Functions.Inventory
 
                 while (await reader.ReadAsync().ConfigureAwait(false))
                 {
-                    // tinyint -> byte in CLR; cast to int for your model if needed
-                    // Defensive reading: check IsDBNull before reading to avoid exceptions.
-                    var conditionId = !reader.IsDBNull(ordConditionId) ? (int)reader.GetByte(ordConditionId) : 0;
-                    var amtInStock = !reader.IsDBNull(ordAmtInStock) ? (int)reader.GetByte(ordAmtInStock) : 0;
+                    var conditionId = !reader.IsDBNull(ordConditionId) ? Convert.ToInt32(reader.GetValue(ordConditionId)) : 0;
+                    var amtInStock = !reader.IsDBNull(ordAmtInStock) ? Convert.ToInt32(reader.GetValue(ordAmtInStock)) : 0;
+                    var amtInCase = !reader.IsDBNull(ordAmtInCase) ? Convert.ToInt32(reader.GetValue(ordAmtInCase)) : 0;
 
                     results.Add(new InventoryItem
                     {
-                        // Use conditional checks for DBNull for each column that may contain nulls.
                         CardName = reader.IsDBNull(ordCardName) ? string.Empty : reader.GetString(ordCardName),
                         Abbreviation = reader.IsDBNull(ordAbbreviation) ? string.Empty : reader.GetString(ordAbbreviation),
                         Rarity = reader.IsDBNull(ordRarity) ? string.Empty : reader.GetString(ordRarity),
@@ -175,6 +163,7 @@ namespace Card_Addiction_POS_System.Functions.Inventory
                         MktPrice = reader.IsDBNull(ordMktPrice) ? 0m : reader.GetDecimal(ordMktPrice),
                         ConditionId = conditionId,
                         AmtInStock = amtInStock,
+                        AMtInCase = amtInCase,
                         PriceUp2Date = !reader.IsDBNull(ordPriceUp2Date) && reader.GetBoolean(ordPriceUp2Date),
                         ImageUrl = reader.IsDBNull(ordImageUrl) ? null : reader.GetString(ordImageUrl),
                         MktPriceUrl = reader.IsDBNull(ordMktPriceUrl) ? null : reader.GetString(ordMktPriceUrl),

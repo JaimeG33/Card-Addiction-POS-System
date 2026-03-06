@@ -184,7 +184,7 @@ namespace Card_Addiction_POS_System.Forms
             // Intentionally left empty - selection handled in SelectionChanged
         }
 
-        // Assemble InventoryItem data and populate tbPrice & tbAmtTraded
+        // Assemble InventoryItem data and populate tbPrice, tbAmtTraded, and intTB_AmtInCase
         private void GrabSelectedInventoryItemData()
         {
             var item = sfDataGrid_InvLookup.SelectedItem as InventoryItem;
@@ -193,8 +193,12 @@ namespace Card_Addiction_POS_System.Forms
                 _selectedInventoryItem = null;
                 tbPrice.Text = string.Empty;
                 tbPrice.DecimalValue = 0m;
+
                 tbAmtTraded.IntegerValue = 1L;
                 tbAmtTraded.Text = "1";
+
+                intTB_AmtInCase.IntegerValue = 0L;
+                intTB_AmtInCase.Text = "0";
                 return;
             }
 
@@ -204,9 +208,13 @@ namespace Card_Addiction_POS_System.Forms
             tbPrice.Text = item.MktPrice.ToString("C2", CultureInfo.GetCultureInfo("en-US"));
             tbPrice.DecimalValue = item.MktPrice;
 
-            // Display amount in stock in the IntegerTextBox
+            // Display amount in stock
             tbAmtTraded.IntegerValue = item.AmtInStock;
             tbAmtTraded.Text = item.AmtInStock.ToString();
+
+            // Display amount in case
+            intTB_AmtInCase.IntegerValue = item.AMtInCase;
+            intTB_AmtInCase.Text = item.AMtInCase.ToString();
         }
 
         // Search UI: enter key triggers search
@@ -366,7 +374,7 @@ namespace Card_Addiction_POS_System.Forms
                     }
                 }
 
-                // 5) Update UI and inform user
+                // 5. Update UI and inform user
                 _selectedInventoryItem = refreshed?.FirstOrDefault(r => r.CardId == selectedCardId);
                 if (_selectedInventoryItem != null)
                 {
