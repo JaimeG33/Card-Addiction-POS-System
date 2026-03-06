@@ -116,11 +116,21 @@ namespace Card_Addiction_POS_System.Functions.Inventory
                 var tableName = string.Concat(game.DatabaseName, "Inventory");
 
                 var baseQuery =
-                    $@"SELECT cardName, COALESCE(abbreviation, '') AS abbreviation, rarity, setId, mktPrice, conditionId, amtInStock, amtInCase, 
-                     priceUp2Date, imageURL, mktPriceURL, cardId
-                    FROM {tableName}
-                    WHERE cardName LIKE @cardName
-                    ORDER BY cardName;";
+                    $@"SELECT cardName,
+                              COALESCE(abbreviation, '') AS abbreviation,
+                              rarity,
+                              setId,
+                              mktPrice,
+                              conditionId,
+                              amtInStock,
+                              amtInCase,
+                              priceUp2Date,
+                              imageURL,
+                              mktPriceURL,
+                              cardId
+                       FROM {tableName}
+                       WHERE cardName LIKE @cardName
+                       ORDER BY cardName;";
 
                 var results = new List<InventoryItem>();
 
@@ -151,7 +161,19 @@ namespace Card_Addiction_POS_System.Functions.Inventory
                 while (await reader.ReadAsync().ConfigureAwait(false))
                 {
                     var conditionId = !reader.IsDBNull(ordConditionId) ? Convert.ToInt32(reader.GetValue(ordConditionId)) : 0;
-                    var amtInStock = !reader.IsDBNull(ordAmtInStock) ? Convert.ToInt32(reader.GetValue(ordAmtInStock)) : 0;
+
+                    int? amtInStockNullable = !reader.IsDBNull(ordAmtInStock)
+                        ? Convert.ToInt32(reader.GetValue(ordAmtInStock))
+                        : null;
+
+                    var amtInStock = amtInStockNullable ?? 0;
+                    var amtInStockIsNull = !amtInStockNullable.HasValue;
+                    var amtInStockDisplay = amtInStockIsNull
+                        ? "Not Inv"
+                        : amtInStock == 0
+                            ? "Sold Out"
+                            : amtInStock.ToString();
+
                     var amtInCase = !reader.IsDBNull(ordAmtInCase) ? Convert.ToInt32(reader.GetValue(ordAmtInCase)) : 0;
 
                     results.Add(new InventoryItem
@@ -163,6 +185,8 @@ namespace Card_Addiction_POS_System.Functions.Inventory
                         MktPrice = reader.IsDBNull(ordMktPrice) ? 0m : reader.GetDecimal(ordMktPrice),
                         ConditionId = conditionId,
                         AmtInStock = amtInStock,
+                        AmtInStockIsNull = amtInStockIsNull,
+                        AmtInStockDisplay = amtInStockDisplay,
                         AMtInCase = amtInCase,
                         PriceUp2Date = !reader.IsDBNull(ordPriceUp2Date) && reader.GetBoolean(ordPriceUp2Date),
                         ImageUrl = reader.IsDBNull(ordImageUrl) ? null : reader.GetString(ordImageUrl),
