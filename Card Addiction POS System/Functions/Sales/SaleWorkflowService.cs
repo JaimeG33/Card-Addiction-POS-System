@@ -203,7 +203,7 @@ namespace Card_Addiction_POS_System.Functions.Sales
                     transactionCounter++;
                 }
 
-                // Update inventory amtInStock in each game table (batched).
+                // Update inventory amtInStock (existing behavior) and amtInCase (new behavior) in each game table (batched).
                 var grouped = lines.GroupBy(l => l.CardGameId);
                 foreach (var group in grouped)
                 {
@@ -213,17 +213,37 @@ namespace Card_Addiction_POS_System.Functions.Sales
                     var sb = new StringBuilder();
                     var idList = new List<int>();
 
-                    sb.Append($"UPDATE {tableName} SET amtInStock = amtInStock + CASE cardId ");
+                    sb.Append($"UPDATE {tableName} SET ");
 
+                    // Existing stock update behavior
+                    sb.Append("amtInStock = amtInStock + CASE cardId ");
                     foreach (var item in group)
                     {
                         var stockChange = item.BuyOrSell ? -item.AmtTraded : item.AmtTraded;
                         sb.Append($"WHEN {item.CardId} THEN {stockChange} ");
                         idList.Add(item.CardId);
                     }
+                    sb.Append("ELSE 0 END, ");
 
-                    sb.Append("END WHERE cardId IN (");
-                    sb.Append(string.Join(",", idList));
+                    // New case update behavior:
+                    // If selling and amtInCase is not NULL/0 and traded <= current amtInCase, subtract traded from amtInCase.
+                    // Otherwise leave amtInCase unchanged.
+                    sb.Append("amtInCase = CASE cardId ");
+                    foreach (var item in group)
+                    {
+                        if (item.BuyOrSell)
+                        {
+                            sb.Append($"WHEN {item.CardId} THEN CASE WHEN amtInCase IS NOT NULL AND amtInCase <> 0 AND {item.AmtTraded} <= amtInCase THEN amtInCase - {item.AmtTraded} ELSE amtInCase END ");
+                        }
+                        else
+                        {
+                            sb.Append($"WHEN {item.CardId} THEN amtInCase ");
+                        }
+                    }
+                    sb.Append("ELSE amtInCase END ");
+
+                    sb.Append("WHERE cardId IN (");
+                    sb.Append(string.Join(",", idList.Distinct()));
                     sb.Append(");");
 
                     using var cmdUpdate = new SqlCommand(sb.ToString(), conn, tran);
