@@ -137,17 +137,13 @@ namespace Card_Addiction_POS_System.Forms
                 }
             });
 
-            sfDataGrid_InvLookup.Columns.Add(new GridNumericColumn
+            // Changed: show status text instead of raw numeric stock
+            sfDataGrid_InvLookup.Columns.Add(new GridTextColumn
             {
-                MappingName = nameof(InventoryItem.AmtInStock),
+                MappingName = nameof(InventoryItem.AmtInStockDisplay),
                 HeaderText = "In Stock",
                 Width = 1,
-                MinimumWidth = 100,
-                NumberFormatInfo = new NumberFormatInfo
-                {
-                    NumberDecimalDigits = 0,
-                    NumberGroupSeparator = string.Empty
-                }
+                MinimumWidth = 100
             });
 
             sfDataGrid_InvLookup.Columns.Add(new GridCheckBoxColumn
@@ -158,10 +154,13 @@ namespace Card_Addiction_POS_System.Forms
                 MinimumWidth = 100
             });
 
-            // Hidden technical columns: ImageUrl, MktPriceUrl, CardId
+            // Hidden technical columns
             sfDataGrid_InvLookup.Columns.Add(new GridTextColumn { MappingName = nameof(InventoryItem.ImageUrl), Visible = false });
             sfDataGrid_InvLookup.Columns.Add(new GridTextColumn { MappingName = nameof(InventoryItem.MktPriceUrl), Visible = false });
             sfDataGrid_InvLookup.Columns.Add(new GridNumericColumn { MappingName = nameof(InventoryItem.CardId), Visible = false });
+
+            // Optional hidden numeric stock if you want to sort/filter by actual numeric value later
+            sfDataGrid_InvLookup.Columns.Add(new GridNumericColumn { MappingName = nameof(InventoryItem.AmtInStock), Visible = false });
         }
 
         // Event handlers for selection logic (wired in designer)
