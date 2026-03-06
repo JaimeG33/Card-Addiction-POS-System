@@ -705,9 +705,96 @@ namespace Card_Addiction_POS_System.Forms
             }
         }
 
-        private void button1_Click(object sender, EventArgs e)
+        private async void btnUpdateCaseAmt_Click(object sender, EventArgs e)
         {
+            if (_selectedInventoryItem == null)
+            {
+                MessageBox.Show("Please select an item first.", "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
 
+            if (_inventoryService == null)
+            {
+                MessageBox.Show("Inventory service is not initialized. Open Inventory from the HomePage so the application can create a database service.", "Service Unavailable", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var cardGameId = selectCardGameControl1.SelectedCardGameId;
+            if (cardGameId < 0)
+            {
+                MessageBox.Show("Please select a card game.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            int newAmountInCase;
+            try
+            {
+                newAmountInCase = Convert.ToInt32(intTB_AmtInCase.IntegerValue);
+                if (newAmountInCase < 0) throw new ArgumentOutOfRangeException(nameof(newAmountInCase), "Amount in case cannot be negative.");
+            }
+            catch (Exception)
+            {
+                MessageBox.Show("Please enter a valid non-negative integer for amount in case.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var selectedCardId = _selectedInventoryItem.CardId;
+
+            var settingsStore = new JsonSettingsStore(AppPaths.SettingsPath);
+            var appSettings = settingsStore.Load();
+            var connectionFactory = new SqlConnectionFactory(appSettings);
+
+            var updater = new AmtInCase_UpdateDB(connectionFactory, Session.PasswordProvider.GetPasswordAsync);
+
+            btnUpdateCaseAmt.Enabled = false;
+            var prevCursor = Cursor.Current;
+            Cursor.Current = Cursors.WaitCursor;
+
+            try
+            {
+                await updater.UpdateAmountAsync(cardGameId, selectedCardId, newAmountInCase);
+
+                var searchText = tbSearchBar.Text ?? string.Empty;
+                var refreshed = await _inventoryService.SearchInventoryAsync(cardGameId, searchText);
+
+                sfDataGrid_InvLookup.DataSource = refreshed ?? null;
+
+                if (refreshed != null)
+                {
+                    var idx = refreshed.ToList().FindIndex(x => x.CardId == selectedCardId);
+                    if (idx >= 0)
+                    {
+                        sfDataGrid_InvLookup.SelectedIndex = idx;
+                    }
+
+                    _selectedInventoryItem = refreshed.FirstOrDefault(r => r.CardId == selectedCardId) ?? _selectedInventoryItem;
+                }
+
+                intTB_AmtInCase.IntegerValue = newAmountInCase;
+                intTB_AmtInCase.Text = newAmountInCase.ToString();
+
+                MessageBox.Show("Case amount updated successfully.", "Updated", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Update failed: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                if (this.IsHandleCreated && this.InvokeRequired)
+                {
+                    this.Invoke(() =>
+                    {
+                        btnUpdateCaseAmt.Enabled = true;
+                        Cursor.Current = prevCursor;
+                    });
+                }
+                else
+                {
+                    btnUpdateCaseAmt.Enabled = true;
+                    Cursor.Current = prevCursor;
+                }
+            }
         }
     }
 }

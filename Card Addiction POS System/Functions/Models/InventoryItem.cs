@@ -15,6 +15,7 @@ namespace Card_Addiction_POS_System.Functions.Models
         public decimal MktPrice { get; set; }
         public int ConditionId { get; set; }
         public int AmtInStock { get; set; }
+        public int AMtInCase { get; set; }
         public bool PriceUp2Date { get; set; }
         public string? ImageUrl { get; set; }
         public string? MktPriceUrl { get; set; }

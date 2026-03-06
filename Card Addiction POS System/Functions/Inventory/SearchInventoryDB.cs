@@ -117,7 +117,7 @@ namespace Card_Addiction_POS_System.Functions.Inventory
 
                 var baseQuery =
                     $@"SELECT cardName, COALESCE(abbreviation, '') AS abbreviation, rarity, setId, mktPrice, conditionId, amtInStock, 
-                     priceUp2Date, imageURL, mktPriceURL, cardId
+                     priceUp2Date, imageURL, mktPriceURL, cardId, amtInCase
                     FROM {tableName}
                     WHERE cardName LIKE @cardName
                     ORDER BY cardName;";
