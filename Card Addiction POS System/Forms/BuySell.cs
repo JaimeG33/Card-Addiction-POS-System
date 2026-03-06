@@ -632,17 +632,13 @@ namespace Card_Addiction_POS_System.Forms
                 }
             });
 
-            sfDataGrid_InvLookup.Columns.Add(new GridNumericColumn
+            // Changed: show text status ("Not Inv", "Sold Out", or quantity)
+            sfDataGrid_InvLookup.Columns.Add(new GridTextColumn
             {
-                MappingName = nameof(InventoryItem.AmtInStock),
+                MappingName = nameof(InventoryItem.AmtInStockDisplay),
                 HeaderText = "In Stock",
                 Width = 1,
-                MinimumWidth = 100,
-                NumberFormatInfo = new NumberFormatInfo
-                {
-                    NumberDecimalDigits = 0,
-                    NumberGroupSeparator = string.Empty
-                }
+                MinimumWidth = 100
             });
 
             sfDataGrid_InvLookup.Columns.Add(new GridCheckBoxColumn
@@ -668,6 +664,13 @@ namespace Card_Addiction_POS_System.Forms
             sfDataGrid_InvLookup.Columns.Add(new GridNumericColumn
             {
                 MappingName = nameof(InventoryItem.CardId),
+                Visible = false
+            });
+
+            // Keep numeric value available if needed for future sort/filter logic
+            sfDataGrid_InvLookup.Columns.Add(new GridNumericColumn
+            {
+                MappingName = nameof(InventoryItem.AmtInStock),
                 Visible = false
             });
         }
