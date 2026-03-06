@@ -39,7 +39,7 @@
             tableLayoutPanel3 = new TableLayoutPanel();
             imgCardUrl = new PictureBox();
             panel1 = new Panel();
-            button1 = new Button();
+            btnItemNotInv = new Button();
             btnSetPrice = new Button();
             btnUpdateAll = new Button();
             btnUpdateAmt = new Button();
@@ -51,6 +51,9 @@
             label1 = new Label();
             sfDataGrid_InvLookup = new Syncfusion.WinForms.DataGrid.SfDataGrid();
             btnAddInventory = new Button();
+            btnUpdateCaseAmt = new Button();
+            label2 = new Label();
+            intTB_AmtInCase = new Syncfusion.Windows.Forms.Tools.IntegerTextBox();
             tableLayoutPanel1.SuspendLayout();
             tableLayoutPanel2.SuspendLayout();
             flowLayoutPanel1.SuspendLayout();
@@ -60,6 +63,7 @@
             ((System.ComponentModel.ISupportInitialize)tbAmtTraded).BeginInit();
             ((System.ComponentModel.ISupportInitialize)tbPrice).BeginInit();
             ((System.ComponentModel.ISupportInitialize)sfDataGrid_InvLookup).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)intTB_AmtInCase).BeginInit();
             SuspendLayout();
             // 
             // headerControl1
@@ -175,7 +179,10 @@
             // 
             // panel1
             // 
-            panel1.Controls.Add(button1);
+            panel1.Controls.Add(btnUpdateCaseAmt);
+            panel1.Controls.Add(label2);
+            panel1.Controls.Add(intTB_AmtInCase);
+            panel1.Controls.Add(btnItemNotInv);
             panel1.Controls.Add(btnSetPrice);
             panel1.Controls.Add(btnUpdateAll);
             panel1.Controls.Add(btnUpdateAmt);
@@ -192,15 +199,17 @@
             panel1.Size = new Size(336, 432);
             panel1.TabIndex = 2;
             // 
-            // button1
+            // btnItemNotInv
             // 
-            button1.Location = new Point(194, 174);
-            button1.Margin = new Padding(3, 4, 3, 4);
-            button1.Name = "button1";
-            button1.Size = new Size(128, 73);
-            button1.TabIndex = 15;
-            button1.Text = "Item Not Counted in Inventory";
-            button1.UseVisualStyleBackColor = true;
+            btnItemNotInv.BackColor = Color.Red;
+            btnItemNotInv.Location = new Point(194, 174);
+            btnItemNotInv.Margin = new Padding(3, 4, 3, 4);
+            btnItemNotInv.Name = "btnItemNotInv";
+            btnItemNotInv.Size = new Size(128, 73);
+            btnItemNotInv.TabIndex = 15;
+            btnItemNotInv.Text = "Item Not Counted in Inventory";
+            btnItemNotInv.UseVisualStyleBackColor = false;
+            btnItemNotInv.Click += btnItemNotInv_Click;
             // 
             // btnSetPrice
             // 
@@ -258,7 +267,7 @@
             // tbAmtTraded
             // 
             tbAmtTraded.AccessibilityEnabled = true;
-            tbAmtTraded.BeforeTouchSize = new Size(114, 27);
+            tbAmtTraded.BeforeTouchSize = new Size(127, 27);
             tbAmtTraded.IntegerValue = 1L;
             tbAmtTraded.Location = new Point(194, 96);
             tbAmtTraded.Margin = new Padding(3, 4, 3, 4);
@@ -270,7 +279,7 @@
             // tbPrice
             // 
             tbPrice.AccessibilityEnabled = true;
-            tbPrice.BeforeTouchSize = new Size(114, 27);
+            tbPrice.BeforeTouchSize = new Size(127, 27);
             tbPrice.DecimalValue = new decimal(new int[] { 100, 0, 0, 131072 });
             tbPrice.Location = new Point(11, 96);
             tbPrice.Margin = new Padding(3, 4, 3, 4);
@@ -327,6 +336,40 @@
             btnAddInventory.UseVisualStyleBackColor = false;
             btnAddInventory.Click += btnAddInventory_Click;
             // 
+            // btnUpdateCaseAmt
+            // 
+            btnUpdateCaseAmt.Location = new Point(194, 345);
+            btnUpdateCaseAmt.Margin = new Padding(3, 4, 3, 4);
+            btnUpdateCaseAmt.Name = "btnUpdateCaseAmt";
+            btnUpdateCaseAmt.Size = new Size(128, 31);
+            btnUpdateCaseAmt.TabIndex = 18;
+            btnUpdateCaseAmt.Text = "Update Amount";
+            btnUpdateCaseAmt.UseVisualStyleBackColor = true;
+            btnUpdateCaseAmt.Click += button1_Click;
+            // 
+            // label2
+            // 
+            label2.AutoSize = true;
+            label2.Location = new Point(194, 282);
+            label2.Name = "label2";
+            label2.Size = new Size(116, 20);
+            label2.TabIndex = 17;
+            label2.Text = "Amount in Case:";
+            //label2.Click += this.label2_Click;
+            // 
+            // intTB_AmtInCase
+            // 
+            intTB_AmtInCase.AccessibilityEnabled = true;
+            intTB_AmtInCase.BeforeTouchSize = new Size(127, 27);
+            intTB_AmtInCase.IntegerValue = 0L;
+            intTB_AmtInCase.Location = new Point(194, 306);
+            intTB_AmtInCase.Margin = new Padding(3, 4, 3, 4);
+            intTB_AmtInCase.Name = "intTB_AmtInCase";
+            intTB_AmtInCase.Size = new Size(127, 27);
+            intTB_AmtInCase.TabIndex = 16;
+            intTB_AmtInCase.Text = "0";
+           // intTB_AmtInCase.TextChanged += this.integerTextBox1_TextChanged;
+            // 
             // InventoryMgmt
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
@@ -355,6 +398,7 @@
             ((System.ComponentModel.ISupportInitialize)tbAmtTraded).EndInit();
             ((System.ComponentModel.ISupportInitialize)tbPrice).EndInit();
             ((System.ComponentModel.ISupportInitialize)sfDataGrid_InvLookup).EndInit();
+            ((System.ComponentModel.ISupportInitialize)intTB_AmtInCase).EndInit();
             ResumeLayout(false);
         }
 
@@ -380,7 +424,10 @@
         private Button btnUpdateAll;
         private Button btnAddInventory;
         private Controls.SelectCardGameControl selectCardGameControl1;
-        private Button button1;
+        private Button btnItemNotInv;
         private Button btnSetPrice;
+        private Button btnUpdateCaseAmt;
+        private Label label2;
+        private Syncfusion.Windows.Forms.Tools.IntegerTextBox intTB_AmtInCase;
     }
 }

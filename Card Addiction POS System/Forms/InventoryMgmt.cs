@@ -632,5 +632,82 @@ namespace Card_Addiction_POS_System.Forms
                 Cursor.Current = prevCursor;
             }
         }
+
+        private async void btnItemNotInv_Click(object sender, EventArgs e)
+        {
+            if (_selectedInventoryItem == null)
+            {
+                MessageBox.Show("Please select an item first.", "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var selectedGame = selectCardGameControl1.SelectedGame;
+            if (selectedGame == null)
+            {
+                MessageBox.Show("Please select a card game.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var cardGameId = selectedGame.CardGameId;
+            var cardId = _selectedInventoryItem.CardId;
+            var cardName = _selectedInventoryItem.CardName;
+
+            var settingsStore = new JsonSettingsStore(AppPaths.SettingsPath);
+            var appSettings = settingsStore.Load();
+            var connectionFactory = new SqlConnectionFactory(appSettings);
+            var updater = new SetAmtInStockToNull(connectionFactory, Session.PasswordProvider.GetPasswordAsync);
+
+            btnItemNotInv.Enabled = false;
+            var prevCursor = Cursor.Current;
+            Cursor.Current = Cursors.WaitCursor;
+
+            try
+            {
+                var successMessage = await updater.SetNotInInventoryAsync(cardGameId, cardId, cardName);
+
+                if (_inventoryService != null)
+                {
+                    var searchText = tbSearchBar.Text ?? string.Empty;
+                    var refreshed = await _inventoryService.SearchInventoryAsync(cardGameId, searchText);
+
+                    sfDataGrid_InvLookup.DataSource = refreshed ?? null;
+
+                    if (refreshed != null)
+                    {
+                        var idx = refreshed.ToList().FindIndex(x => x.CardId == cardId);
+                        if (idx >= 0)
+                        {
+                            sfDataGrid_InvLookup.SelectedIndex = idx;
+                        }
+
+                        _selectedInventoryItem = refreshed.FirstOrDefault(x => x.CardId == cardId) ?? _selectedInventoryItem;
+                    }
+                }
+                else
+                {
+                    // InventoryItem.AmtInStock is int, so represent "Not Inv"/NULL as 0 in UI model fallback.
+                    _selectedInventoryItem.AmtInStock = 0;
+                }
+
+                tbAmtTraded.IntegerValue = _selectedInventoryItem?.AmtInStock ?? 0;
+                tbAmtTraded.Text = (_selectedInventoryItem?.AmtInStock ?? 0).ToString();
+
+                MessageBox.Show(successMessage, "Updated", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Set Not Inv failed: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                btnItemNotInv.Enabled = true;
+                Cursor.Current = prevCursor;
+            }
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+
+        }
     }
 }
