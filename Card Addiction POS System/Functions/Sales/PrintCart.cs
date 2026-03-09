@@ -435,9 +435,20 @@ WHERE s.name = 'dbo'
                 DocumentName = documentName
             };
 
+            // Reduce default margins so text starts closer to page edges.
+            // (Hundredths of an inch)
+            printDoc.DefaultPageSettings.Margins = new Margins(15, 15, 20, 20);
+
             // Track print position per print job (preview and actual print are separate jobs).
             var lineIndex = 0;
             var printFont = new Font("Consolas", 10f);
+            var stringFormat = new StringFormat
+            {
+                Alignment = StringAlignment.Near,
+                LineAlignment = StringAlignment.Near,
+                Trimming = StringTrimming.None, // do not trim with ellipsis
+                FormatFlags = 0                  // allow wrapping
+            };
 
             printDoc.BeginPrint += (_, _) =>
             {
@@ -446,24 +457,48 @@ WHERE s.name = 'dbo'
 
             printDoc.PrintPage += (_, e) =>
             {
-                float y = e.MarginBounds.Top;
-                var left = e.MarginBounds.Left;
-                var lineHeight = printFont.GetHeight(e.Graphics) + 2f;
+                // Shift text slightly left from normal margin while staying on printable page.
+                float left = Math.Max(e.PageBounds.Left + 2f, e.MarginBounds.Left - 10f);
+                float rightPadding = 4f;
+                float usableWidth = Math.Max(50f, e.PageBounds.Right - left - rightPadding);
 
-                while (lineIndex < lines.Count && y + lineHeight <= e.MarginBounds.Bottom)
+                float y = e.MarginBounds.Top;
+                float bottom = e.MarginBounds.Bottom;
+
+                while (lineIndex < lines.Count)
                 {
-                    e.Graphics.DrawString(lines[lineIndex], printFont, Brushes.Black, left, y);
+                    var text = lines[lineIndex] ?? string.Empty;
+
+                    // Measure wrapped height for this line within available width.
+                    var measured = e.Graphics.MeasureString(
+                        text,
+                        printFont,
+                        new SizeF(usableWidth, float.MaxValue),
+                        stringFormat);
+
+                    var requiredHeight = (float)Math.Ceiling(measured.Height) + 2f;
+
+                    // If the wrapped block doesn't fit on this page, continue on next page.
+                    if (y + requiredHeight > bottom)
+                    {
+                        break;
+                    }
+
+                    var rect = new RectangleF(left, y, usableWidth, requiredHeight);
+                    e.Graphics.DrawString(text, printFont, Brushes.Black, rect, stringFormat);
+
+                    y += requiredHeight;
                     lineIndex++;
-                    y += lineHeight;
                 }
 
                 e.HasMorePages = lineIndex < lines.Count;
             };
 
-            // Dispose font when document is disposed.
+            // Dispose resources when the document is disposed.
             printDoc.Disposed += (_, _) =>
             {
                 printFont.Dispose();
+                stringFormat.Dispose();
             };
 
             return printDoc;
