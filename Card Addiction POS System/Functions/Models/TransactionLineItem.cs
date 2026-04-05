@@ -17,6 +17,11 @@ namespace Card_Addiction_POS_System.Functions.Models
         public int ConditionId { get; set; }
         public string CardName { get; set; }
         public int SetId { get; set; }
+
+        // Display-only value for cart grid Set column.
+        // Uses abbreviation when available; otherwise set name lookup via setId.
+        public string SetDisplay { get; set; } = string.Empty;
+
         public decimal TimeMktPrice { get; set; }
         public decimal AgreedPrice { get; set; }
         public int AmtTraded { get; set; }

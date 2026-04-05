@@ -64,75 +64,50 @@ namespace Card_Addiction_POS_System.Forms
             sfDataGrid_Cart.AutoSizeColumnsMode = AutoSizeColumnsMode.Fill;
             sfDataGrid_Cart.Columns.Clear();
 
+            // Card Name (largest)
             sfDataGrid_Cart.Columns.Add(new GridTextColumn
             {
                 MappingName = nameof(TransactionLineItem.CardName),
                 HeaderText = "Card Name",
-                Width = 280,
-                MinimumWidth = 180
+                Width = 420,
+                MinimumWidth = 260
             });
 
+            // Rarity (medium)
             sfDataGrid_Cart.Columns.Add(new GridTextColumn
             {
                 MappingName = nameof(TransactionLineItem.Rarity),
                 HeaderText = "Rarity",
-                Width = 120,
-                MinimumWidth = 80
+                Width = 150,
+                MinimumWidth = 110
             });
 
-            sfDataGrid_Cart.Columns.Add(new GridNumericColumn
+            // Set (medium) - abbreviation first, fallback set name
+            sfDataGrid_Cart.Columns.Add(new GridTextColumn
             {
-                MappingName = nameof(TransactionLineItem.SetId),
+                MappingName = nameof(TransactionLineItem.SetDisplay),
                 HeaderText = "Set",
-                Width = 80,
-                MinimumWidth = 60,
-                NumberFormatInfo = new NumberFormatInfo { NumberDecimalDigits = 0, NumberGroupSeparator = string.Empty }
+                Width = 170,
+                MinimumWidth = 120
             });
 
+            // Qty (minimal)
             sfDataGrid_Cart.Columns.Add(new GridNumericColumn
             {
                 MappingName = nameof(TransactionLineItem.AmtTraded),
                 HeaderText = "Qty",
-                Width = 80,
+                Width = 75,
                 MinimumWidth = 60,
                 NumberFormatInfo = new NumberFormatInfo { NumberDecimalDigits = 0, NumberGroupSeparator = string.Empty }
             });
 
-            sfDataGrid_Cart.Columns.Add(new GridNumericColumn
-            {
-                MappingName = nameof(TransactionLineItem.AmtInStock),
-                HeaderText = "In Stock",
-                Width = 95,
-                MinimumWidth = 75,
-                NumberFormatInfo = new NumberFormatInfo { NumberDecimalDigits = 0, NumberGroupSeparator = string.Empty }
-            });
-
-            // New visible cart column
-            sfDataGrid_Cart.Columns.Add(new GridNumericColumn
-            {
-                MappingName = nameof(TransactionLineItem.AmtInCase),
-                HeaderText = "In Case",
-                Width = 95,
-                MinimumWidth = 75,
-                NumberFormatInfo = new NumberFormatInfo { NumberDecimalDigits = 0, NumberGroupSeparator = string.Empty }
-            });
-
-            sfDataGrid_Cart.Columns.Add(new GridNumericColumn
-            {
-                MappingName = nameof(TransactionLineItem.TimeMktPrice),
-                HeaderText = "Market",
-                Width = 100,
-                MinimumWidth = 80,
-                FormatMode = FormatMode.Currency,
-                NumberFormatInfo = new NumberFormatInfo { CurrencyDecimalDigits = 2, CurrencySymbol = "$" }
-            });
-
+            // Agreed Price (small)
             sfDataGrid_Cart.Columns.Add(new GridNumericColumn
             {
                 MappingName = nameof(TransactionLineItem.AgreedPrice),
-                HeaderText = "Agreed",
-                Width = 100,
-                MinimumWidth = 80,
+                HeaderText = "Agreed Price",
+                Width = 120,
+                MinimumWidth = 95,
                 FormatMode = FormatMode.Currency,
                 NumberFormatInfo = new NumberFormatInfo { CurrencyDecimalDigits = 2, CurrencySymbol = "$" }
             });
@@ -929,6 +904,35 @@ namespace Card_Addiction_POS_System.Forms
             }
         }
 
+        private async Task<string> ResolveSetDisplayAsync(int cardGameId, string? abbreviation, int setId)
+        {
+            if (!string.IsNullOrWhiteSpace(abbreviation))
+            {
+                return abbreviation.Trim();
+            }
+
+            try
+            {
+                var settingsStore = new JsonSettingsStore(AppPaths.SettingsPath);
+                var appSettings = settingsStore.Load();
+                var connectionFactory = new SqlConnectionFactory(appSettings);
+
+                var setFinder = new FindSetOfItem(connectionFactory, Session.PasswordProvider.GetPasswordAsync);
+                var setName = await setFinder.FindSetNameAsync(cardGameId, setId);
+
+                if (!string.IsNullOrWhiteSpace(setName))
+                {
+                    return setName.Trim();
+                }
+            }
+            catch
+            {
+                // Fallback below if lookup fails for any reason.
+            }
+
+            return $"Set {setId}";
+        }
+
         // Updated: Add-to-cart now looks up the price only if priceUp2Date == false.
         private async void btnAddCt_Click(object sender, EventArgs e)
         {
@@ -972,6 +976,7 @@ namespace Card_Addiction_POS_System.Forms
             }
 
             int cardGameId = selectedGame.CardGameId;
+            string setDisplay = await ResolveSetDisplayAsync(cardGameId, _selectedInventoryItem.Abbreviation, _selectedInventoryItem.SetId);
 
             var line = new TransactionLineItem
             {
@@ -981,6 +986,7 @@ namespace Card_Addiction_POS_System.Forms
                 CardName = _selectedInventoryItem.CardName,
                 Rarity = _selectedInventoryItem.Rarity,
                 SetId = _selectedInventoryItem.SetId,
+                SetDisplay = setDisplay,
                 TimeMktPrice = timeMktPrice,
                 AgreedPrice = agreedPrice,
                 AmtTraded = amtTraded,
@@ -1000,10 +1006,34 @@ namespace Card_Addiction_POS_System.Forms
         // Pricing
 
 
+        // Main Cart
         private void sfDataGrid_Cart_Click(object sender, EventArgs e)
+        {
+            // Logic for cart selection bellow
+        }
+        private void sfDataGrid_Cart_CellClick(object sender, CellClickEventArgs e)
         {
 
         }
+        private void sfDataGrid_Cart_CurrentCellEndEdit(object sender, CurrentCellEndEditEventArgs e)
+        {
+
+        }
+        private void sfDataGrid_Cart_KeyDown(object sender, KeyEventArgs e)
+        {
+
+        }
+
+
+
+
+
+        //Summary Cart
+        private void sfDataGrid_CartSummary_Click(object sender, EventArgs e)
+        {
+
+        }
+
 
         private void tbPrice_TextChanged(object sender, EventArgs e)
         {
@@ -1039,5 +1069,7 @@ namespace Card_Addiction_POS_System.Forms
                 MessageBox.Show($"Print failed: {ex.Message}", "Print Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+
+        
     }
 }

@@ -288,6 +288,7 @@
             // sfDataGrid_Cart
             // 
             sfDataGrid_Cart.AccessibleName = "Table";
+            sfDataGrid_Cart.AllowDeleting = true;
             sfDataGrid_Cart.BackColor = Color.SkyBlue;
             sfDataGrid_Cart.Dock = DockStyle.Fill;
             sfDataGrid_Cart.Location = new Point(3, 4);
@@ -300,7 +301,10 @@
             sfDataGrid_Cart.Style.DragPreviewRowStyle.RowCountIndicatorTextColor = Color.FromArgb(255, 255, 255);
             sfDataGrid_Cart.TabIndex = 1;
             sfDataGrid_Cart.Text = "sfDataGrid1";
+            sfDataGrid_Cart.CellClick += sfDataGrid_Cart_CellClick;
+            sfDataGrid_Cart.CurrentCellEndEdit += sfDataGrid_Cart_CurrentCellEndEdit;
             sfDataGrid_Cart.Click += sfDataGrid_Cart_Click;
+            sfDataGrid_Cart.KeyDown += sfDataGrid_Cart_KeyDown;
             // 
             // sfDataGrid_CartSummary
             // 
@@ -317,6 +321,7 @@
             sfDataGrid_CartSummary.Style.DragPreviewRowStyle.RowCountIndicatorTextColor = Color.FromArgb(255, 255, 255);
             sfDataGrid_CartSummary.TabIndex = 2;
             sfDataGrid_CartSummary.Text = "Cart Summary";
+            sfDataGrid_CartSummary.Click += sfDataGrid_CartSummary_Click;
             // 
             // tableLayoutPanel3
             // 
