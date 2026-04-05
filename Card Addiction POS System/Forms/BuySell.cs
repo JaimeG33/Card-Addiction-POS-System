@@ -76,6 +76,7 @@ private sealed class CartSummaryRow
             sfDataGrid_Cart.CurrentCellEndEdit += sfDataGrid_Cart_CurrentCellEndEdit;
             sfDataGrid_Cart.KeyDown += sfDataGrid_Cart_KeyDown;
             sfDataGrid_CartSummary.CurrentCellEndEdit += sfDataGrid_CartSummary_CurrentCellEndEdit;
+            sfDataGrid_CartSummary.CurrentCellBeginEdit += sfDataGrid_CartSummary_CurrentCellBeginEdit;
 
             RefreshCartSummary();
         }
@@ -1111,6 +1112,20 @@ private sealed class CartSummaryRow
     RefreshCartSummary();
 }
 
+        private void sfDataGrid_CartSummary_CurrentCellBeginEdit(object sender, CurrentCellBeginEditEventArgs e)
+        {
+            // Allow edit only when row is "Final Total".
+            // Column-level AllowEditing already blocks non-editable columns.
+            if (e.DataRow?.RowData is not CartSummaryRow row)
+            {
+                e.Cancel = true;
+                return;
+            }
+
+            var isFinalTotalRow = string.Equals(row.Metric, SummaryMetricFinalTotal, StringComparison.Ordinal);
+            e.Cancel = !isFinalTotalRow;
+        }
+
         private void CartBinding_ListChanged(object? sender, ListChangedEventArgs e)
 {
     _manualFinalTotal = null; // default back to subtotal (rounding = 0)
@@ -1160,7 +1175,9 @@ private void tbPrice_TextChanged(object sender, EventArgs e)
             sfDataGrid_CartSummary.AutoSizeColumnsMode = AutoSizeColumnsMode.Fill;
             sfDataGrid_CartSummary.SelectionMode = GridSelectionMode.Single;
             sfDataGrid_CartSummary.SelectionUnit = SelectionUnit.Row;
+            sfDataGrid_CartSummary.HeaderRowHeight = 0;
             sfDataGrid_CartSummary.Columns.Clear();
+            
 
             sfDataGrid_CartSummary.Columns.Add(new GridTextColumn
             {
