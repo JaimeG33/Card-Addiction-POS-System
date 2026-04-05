@@ -39,75 +39,102 @@ namespace Card_Addiction_POS_System.Forms
         private DetermineSaleId? _saleIdDeterminer;
         private int? _reservedSaleId;
 
+        private readonly CalculateTotalSaleInfo _saleTotalsCalculator = new();
+private readonly BindingList<CartSummaryRow> _cartSummaryBinding = new();
+
+private decimal? _manualFinalTotal;
+
+private const string SummaryMetricTotalItems = "Total Items";
+private const string SummaryMetricSubTotal = "Subtotal";
+private const string SummaryMetricRounding = "Rounding";
+private const string SummaryMetricFinalTotal = "Final Total";
+
+private sealed class CartSummaryRow
+{
+    public string Metric { get; set; } = string.Empty;
+    public int? TotalItems { get; set; }
+    public decimal? Amount { get; set; }
+}
+
         public BuySell(IInventoryService inventoryService)
         {
             InitializeComponent();
             _inventoryService = inventoryService;
 
-            // Allow typing in the search box even if Designer set it ReadOnly
             tbSearchBar.ReadOnly = false;
             tbSearchBar.Enabled = true;
 
             ConfigureInventoryGrid();
-
-            // Ensure we receive selection notifications from the grid
             sfDataGrid_InvLookup.SelectionChanged += sfDataGrid_InvLookup_SelectionChanged;
 
             ConfigureCartGrid();
+            ConfigureCartSummaryGrid();
+
+            // Add this:
+            _cartBinding.ListChanged += CartBinding_ListChanged;
+
+            sfDataGrid_Cart.CurrentCellEndEdit += sfDataGrid_Cart_CurrentCellEndEdit;
+            sfDataGrid_Cart.KeyDown += sfDataGrid_Cart_KeyDown;
+            sfDataGrid_CartSummary.CurrentCellEndEdit += sfDataGrid_CartSummary_CurrentCellEndEdit;
+
+            RefreshCartSummary();
         }
 
         private void ConfigureCartGrid()
         {
             sfDataGrid_Cart.AutoGenerateColumns = false;
-            sfDataGrid_Cart.AllowEditing = false;
+            sfDataGrid_Cart.AllowEditing = true;
+            sfDataGrid_Cart.AllowDeleting = true;
             sfDataGrid_Cart.AllowSorting = true;
             sfDataGrid_Cart.AutoSizeColumnsMode = AutoSizeColumnsMode.Fill;
+            sfDataGrid_Cart.SelectionMode = GridSelectionMode.Multiple;
+            sfDataGrid_Cart.SelectionUnit = SelectionUnit.Row;
             sfDataGrid_Cart.Columns.Clear();
 
-            // Card Name (largest)
             sfDataGrid_Cart.Columns.Add(new GridTextColumn
             {
                 MappingName = nameof(TransactionLineItem.CardName),
                 HeaderText = "Card Name",
                 Width = 420,
-                MinimumWidth = 260
+                MinimumWidth = 260,
+                AllowEditing = false
             });
 
-            // Rarity (medium)
             sfDataGrid_Cart.Columns.Add(new GridTextColumn
             {
                 MappingName = nameof(TransactionLineItem.Rarity),
                 HeaderText = "Rarity",
                 Width = 150,
-                MinimumWidth = 110
+                MinimumWidth = 110,
+                AllowEditing = false
             });
 
-            // Set (medium) - abbreviation first, fallback set name
             sfDataGrid_Cart.Columns.Add(new GridTextColumn
             {
                 MappingName = nameof(TransactionLineItem.SetDisplay),
                 HeaderText = "Set",
                 Width = 170,
-                MinimumWidth = 120
+                MinimumWidth = 120,
+                AllowEditing = false
             });
 
-            // Qty (minimal)
             sfDataGrid_Cart.Columns.Add(new GridNumericColumn
             {
                 MappingName = nameof(TransactionLineItem.AmtTraded),
                 HeaderText = "Qty",
                 Width = 75,
                 MinimumWidth = 60,
+                AllowEditing = true,
                 NumberFormatInfo = new NumberFormatInfo { NumberDecimalDigits = 0, NumberGroupSeparator = string.Empty }
             });
 
-            // Agreed Price (small)
             sfDataGrid_Cart.Columns.Add(new GridNumericColumn
             {
                 MappingName = nameof(TransactionLineItem.AgreedPrice),
                 HeaderText = "Agreed Price",
                 Width = 120,
                 MinimumWidth = 95,
+                AllowEditing = true,
                 FormatMode = FormatMode.Currency,
                 NumberFormatInfo = new NumberFormatInfo { CurrencyDecimalDigits = 2, CurrencySymbol = "$" }
             });
@@ -179,6 +206,8 @@ namespace Card_Addiction_POS_System.Forms
         // Called after a successful finalize to reset the UI for the next sale but keep current search/results.
         private void ResetFormForNextSale()
         {
+            _manualFinalTotal = null;
+
             // Clear cart
             _cartBinding.Clear();
 
@@ -195,13 +224,7 @@ namespace Card_Addiction_POS_System.Forms
             lblSaleInfo.Text = _reservedSaleId.HasValue ? $"Sale ID: {_reservedSaleId} (reserved)" : "Sale ID: N/A";
         }
 
-        // Add helper mapping used when updating priceUp2Date directly:
-        private static readonly Dictionary<string, string> _uiCardGameToTable = new()
-        {
-            ["Yugioh"] = "YugiohInventory",
-            ["Magic"] = "MagicInventory",
-            ["Pokemon"] = "PokemonInventory"
-        };
+
 
         // Price lookup method — updated to use SelectCardGameControl numeric id and database name.
         private async Task<decimal?> PriceLookupAndUpdate()
@@ -364,6 +387,8 @@ namespace Card_Addiction_POS_System.Forms
                 return;
             }
 
+            RefreshCartSummary();
+
             var settingsStore = new JsonSettingsStore(AppPaths.SettingsPath);
             var appSettings = settingsStore.Load();
             var connectionFactory = new SqlConnectionFactory(appSettings);
@@ -395,10 +420,11 @@ namespace Card_Addiction_POS_System.Forms
                     {
                         // No existing row -> create with providedSaleId
                         saleId = await workflow.CreateSaleAsync(DateTimeOffset.Now,
-                            providedSaleId: providedSaleId,
-                            registerId: (byte)registerIdInt,
-                            employeeId: employeeIdInt.HasValue ? (byte?)employeeIdInt.Value : null,
-                            orderStatus: OrderStatus.TakingOrder.ToString());
+                        providedSaleId: providedSaleId,
+                        registerId: (byte)registerIdInt,
+                        employeeId: employeeIdInt.HasValue ? (byte?)employeeIdInt.Value : null,
+                        orderStatus: OrderStatus.TakingOrder.ToString(),
+                        profit: _currentSaleItem.FinalTotal);
 
                         // Keep _reservedSaleId set to the same value
                         _reservedSaleId = saleId;
@@ -592,6 +618,8 @@ namespace Card_Addiction_POS_System.Forms
             }
         }
 
+        private readonly SaleItem _currentSaleItem = new();
+
         private void ImageResizing()
         {
             double imgHeight = tLP_img.Height;
@@ -732,23 +760,14 @@ namespace Card_Addiction_POS_System.Forms
 
         private void BuySell_FormClosed(object sender, FormClosedEventArgs e)
         {
-            // Do NOT call base.OnFormClosed(e) here. This method is a handler wired to the FormClosed event.
-            // Calling base.OnFormClosed(e) from an event handler can re-trigger the event and cause recursion.
-            //
-            // If you need to override OnFormClosed, implement:
-            // protected override void OnFormClosed(FormClosedEventArgs e) { /* cleanup */ base.OnFormClosed(e); }
-            //
-            // Clean up any resources you own here (no long-lived finder field remains).
-            // If you later add disposable resources, dispose them here safely.
+            _cartBinding.ListChanged -= CartBinding_ListChanged;
 
             if (IsNavigating)
             {
-                return; // Do nothing if navigating to another form
+                return;
             }
-            else
-            {
-                Application.Exit(); // Exit the application if not navigating
-            }
+
+            Application.Exit();
         }
 
         private void tbSearchBar_TextChanged(object sender, EventArgs e)
@@ -1017,25 +1036,88 @@ namespace Card_Addiction_POS_System.Forms
         }
         private void sfDataGrid_Cart_CurrentCellEndEdit(object sender, CurrentCellEndEditEventArgs e)
         {
+            if (e.DataRow?.RowData is not TransactionLineItem row)
+    {
+        return;
+    }
 
-        }
+    if (row.AmtTraded <= 0)
+    {
+        row.AmtTraded = 1;
+    }
+
+    if (row.AgreedPrice < 0m)
+    {
+        row.AgreedPrice = 0m;
+    }
+
+    RefreshCartSummary();
+}
+
         private void sfDataGrid_Cart_KeyDown(object sender, KeyEventArgs e)
         {
+            if (e.KeyCode != Keys.Delete && e.KeyCode != Keys.Back)
+    {
+        return;
+    }
 
-        }
+    var selectedRows = sfDataGrid_Cart.SelectedItems?.OfType<TransactionLineItem>().ToList() ?? new List<TransactionLineItem>();
+    if (selectedRows.Count == 0 && sfDataGrid_Cart.SelectedItem is TransactionLineItem single)
+    {
+        selectedRows.Add(single);
+    }
 
+    if (selectedRows.Count == 0)
+    {
+        return;
+    }
 
+    foreach (var row in selectedRows)
+    {
+        _cartBinding.Remove(row);
+    }
 
+    if (_cartBinding.Count == 0)
+    {
+        btnFinalizeSale.Visible = false;
+    }
 
+    _manualFinalTotal = null; // cart changed -> rounding should reset
+    e.Handled = true;
+    RefreshCartSummary();
+}
 
-        //Summary Cart
-        private void sfDataGrid_CartSummary_Click(object sender, EventArgs e)
+        private void sfDataGrid_CartSummary_CurrentCellEndEdit(object sender, CurrentCellEndEditEventArgs e)
         {
+            if (e.DataRow?.RowData is not CartSummaryRow row)
+    {
+        return;
+    }
 
-        }
+    // Only "Final Total" is user-editable in behavior.
+    if (!string.Equals(row.Metric, SummaryMetricFinalTotal, StringComparison.Ordinal))
+    {
+        RefreshCartSummary();
+        return;
+    }
 
+    if (!row.Amount.HasValue)
+    {
+        RefreshCartSummary();
+        return;
+    }
 
-        private void tbPrice_TextChanged(object sender, EventArgs e)
+    _manualFinalTotal = row.Amount.Value;
+    RefreshCartSummary();
+}
+
+        private void CartBinding_ListChanged(object? sender, ListChangedEventArgs e)
+{
+    _manualFinalTotal = null; // default back to subtotal (rounding = 0)
+    RefreshCartSummary();
+}
+
+private void tbPrice_TextChanged(object sender, EventArgs e)
         {
 
         }
@@ -1070,6 +1152,61 @@ namespace Card_Addiction_POS_System.Forms
             }
         }
 
-        
+        private void ConfigureCartSummaryGrid()
+        {
+            sfDataGrid_CartSummary.AutoGenerateColumns = false;
+            sfDataGrid_CartSummary.AllowEditing = true;
+            sfDataGrid_CartSummary.AllowSorting = false;
+            sfDataGrid_CartSummary.AutoSizeColumnsMode = AutoSizeColumnsMode.Fill;
+            sfDataGrid_CartSummary.SelectionMode = GridSelectionMode.Single;
+            sfDataGrid_CartSummary.SelectionUnit = SelectionUnit.Row;
+            sfDataGrid_CartSummary.Columns.Clear();
+
+            sfDataGrid_CartSummary.Columns.Add(new GridTextColumn
+            {
+                MappingName = nameof(CartSummaryRow.Metric),
+                HeaderText = "Summary",
+                Width = 220,
+                MinimumWidth = 140,
+                AllowEditing = false
+            });
+
+            sfDataGrid_CartSummary.Columns.Add(new GridNumericColumn
+            {
+                MappingName = nameof(CartSummaryRow.TotalItems),
+                HeaderText = "Items",
+                Width = 90,
+                MinimumWidth = 70,
+                AllowEditing = false,
+                NumberFormatInfo = new NumberFormatInfo { NumberDecimalDigits = 0, NumberGroupSeparator = string.Empty }
+            });
+
+            sfDataGrid_CartSummary.Columns.Add(new GridNumericColumn
+            {
+                MappingName = nameof(CartSummaryRow.Amount),
+                HeaderText = "Amount",
+                Width = 150,
+                MinimumWidth = 110,
+                AllowEditing = true,
+                FormatMode = FormatMode.Currency,
+                NumberFormatInfo = new NumberFormatInfo { CurrencyDecimalDigits = 2, CurrencySymbol = "$" }
+            });
+
+            sfDataGrid_CartSummary.DataSource = _cartSummaryBinding;
+        }
+
+private void RefreshCartSummary()
+{
+    var totals = _saleTotalsCalculator.Calculate(_cartBinding, _manualFinalTotal);
+
+    // Keep SaleItem totals in sync for DB persistence
+    _currentSaleItem.UpdateTotals(totals.SubTotalPrice, totals.FinalPrice);
+
+    _cartSummaryBinding.Clear();
+    _cartSummaryBinding.Add(new CartSummaryRow { Metric = SummaryMetricTotalItems, TotalItems = totals.TotalItems, Amount = null });
+    _cartSummaryBinding.Add(new CartSummaryRow { Metric = SummaryMetricSubTotal, TotalItems = null, Amount = totals.SubTotalPrice });
+    _cartSummaryBinding.Add(new CartSummaryRow { Metric = SummaryMetricRounding, TotalItems = null, Amount = totals.Rounding });
+    _cartSummaryBinding.Add(new CartSummaryRow { Metric = SummaryMetricFinalTotal, TotalItems = null, Amount = totals.FinalPrice });
+}
     }
 }

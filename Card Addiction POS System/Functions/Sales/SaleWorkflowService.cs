@@ -33,57 +33,64 @@ namespace Card_Addiction_POS_System.Functions.Sales
         /// - Otherwise the insert will rely on an IDENTITY and the method returns the generated identity.
         /// Returns the resulting sale id (either providedSaleId or identity).
         /// </summary>
-        public async Task<int> CreateSaleAsync(DateTimeOffset saleDate, int? providedSaleId = null, byte registerId = 1, byte? employeeId = null, string? orderStatus = null)
-        {
-            const string insertWithSaleId = @"
-                INSERT INTO dbo.Sale (saleDate, saleId, register, employeeId, orderStatus)
-                VALUES (@saleDate, @saleId, @register, @employeeId, @orderStatus);";
+        public async Task<int> CreateSaleAsync(
+    DateTimeOffset saleDate,
+    int? providedSaleId = null,
+    byte registerId = 1,
+    byte? employeeId = null,
+    string? orderStatus = null,
+    decimal? profit = null)
+{
+    const string insertWithSaleId = @"
+        INSERT INTO dbo.Sale (saleDate, saleId, register, employeeId, orderStatus, profit)
+        VALUES (@saleDate, @saleId, @register, @employeeId, @orderStatus, @profit);";
 
-            const string insertWithoutSaleId = @"
-                INSERT INTO dbo.Sale (saleDate, register, employeeId, orderStatus)
-                VALUES (@saleDate, @register, @employeeId, @orderStatus);
-                SELECT CAST(SCOPE_IDENTITY() AS int);";
+    const string insertWithoutSaleId = @"
+        INSERT INTO dbo.Sale (saleDate, register, employeeId, orderStatus, profit)
+        VALUES (@saleDate, @register, @employeeId, @orderStatus, @profit);
+        SELECT CAST(SCOPE_IDENTITY() AS int);";
 
-            var password = await _getPasswordAsync().ConfigureAwait(false);
-            using var conn = _connectionFactory.CreateForCurrentUser(password);
-            password = string.Empty;
+    var password = await _getPasswordAsync().ConfigureAwait(false);
+    using var conn = _connectionFactory.CreateForCurrentUser(password);
+    password = string.Empty;
 
-            await conn.OpenAsync().ConfigureAwait(false);
+    await conn.OpenAsync().ConfigureAwait(false);
 
-            if (providedSaleId.HasValue)
-            {
-                using var cmd = new SqlCommand(insertWithSaleId, conn);
-                cmd.Parameters.Add("@saleDate", SqlDbType.DateTime).Value = saleDate.UtcDateTime;
-                // saleId is smallint in DB
-                cmd.Parameters.Add("@saleId", SqlDbType.SmallInt).Value = providedSaleId.Value;
-                cmd.Parameters.Add("@register", SqlDbType.TinyInt).Value = registerId;
-                if (employeeId.HasValue)
-                    cmd.Parameters.Add("@employeeId", SqlDbType.TinyInt).Value = employeeId.Value;
-                else
-                    cmd.Parameters.Add("@employeeId", SqlDbType.TinyInt).Value = DBNull.Value;
-                cmd.Parameters.Add("@orderStatus", SqlDbType.NVarChar, 50).Value = (object?)orderStatus ?? DBNull.Value;
+    if (providedSaleId.HasValue)
+    {
+        using var cmd = new SqlCommand(insertWithSaleId, conn);
+        cmd.Parameters.Add("@saleDate", SqlDbType.DateTime).Value = saleDate.UtcDateTime;
+        cmd.Parameters.Add("@saleId", SqlDbType.SmallInt).Value = providedSaleId.Value;
+        cmd.Parameters.Add("@register", SqlDbType.TinyInt).Value = registerId;
+        if (employeeId.HasValue)
+            cmd.Parameters.Add("@employeeId", SqlDbType.TinyInt).Value = employeeId.Value;
+        else
+            cmd.Parameters.Add("@employeeId", SqlDbType.TinyInt).Value = DBNull.Value;
+        cmd.Parameters.Add("@orderStatus", SqlDbType.NVarChar, 50).Value = (object?)orderStatus ?? DBNull.Value;
+        cmd.Parameters.Add("@profit", SqlDbType.SmallMoney).Value = (object?)profit ?? DBNull.Value;
 
-                await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
-                return providedSaleId.Value;
-            }
-            else
-            {
-                using var cmd = new SqlCommand(insertWithoutSaleId, conn);
-                cmd.Parameters.Add("@saleDate", SqlDbType.DateTime).Value = saleDate.UtcDateTime;
-                cmd.Parameters.Add("@register", SqlDbType.TinyInt).Value = registerId;
-                if (employeeId.HasValue)
-                    cmd.Parameters.Add("@employeeId", SqlDbType.TinyInt).Value = employeeId.Value;
-                else
-                    cmd.Parameters.Add("@employeeId", SqlDbType.TinyInt).Value = DBNull.Value;
-                cmd.Parameters.Add("@orderStatus", SqlDbType.NVarChar, 50).Value = (object?)orderStatus ?? DBNull.Value;
+        await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+        return providedSaleId.Value;
+    }
+    else
+    {
+        using var cmd = new SqlCommand(insertWithoutSaleId, conn);
+        cmd.Parameters.Add("@saleDate", SqlDbType.DateTime).Value = saleDate.UtcDateTime;
+        cmd.Parameters.Add("@register", SqlDbType.TinyInt).Value = registerId;
+        if (employeeId.HasValue)
+            cmd.Parameters.Add("@employeeId", SqlDbType.TinyInt).Value = employeeId.Value;
+        else
+            cmd.Parameters.Add("@employeeId", SqlDbType.TinyInt).Value = DBNull.Value;
+        cmd.Parameters.Add("@orderStatus", SqlDbType.NVarChar, 50).Value = (object?)orderStatus ?? DBNull.Value;
+        cmd.Parameters.Add("@profit", SqlDbType.SmallMoney).Value = (object?)profit ?? DBNull.Value;
 
-                var result = await cmd.ExecuteScalarAsync().ConfigureAwait(false);
-                if (result == null || result == DBNull.Value)
-                    throw new Exception("Failed to create Sale record or retrieve its identity.");
+        var result = await cmd.ExecuteScalarAsync().ConfigureAwait(false);
+        if (result == null || result == DBNull.Value)
+            throw new Exception("Failed to create Sale record or retrieve its identity.");
 
-                return Convert.ToInt32(result);
-            }
-        }
+        return Convert.ToInt32(result);
+    }
+}
 
         /// <summary>
         /// Update orderStatus for an existing sale row.
@@ -285,6 +292,29 @@ namespace Card_Addiction_POS_System.Functions.Sales
                 return null;
 
             return Convert.ToString(result);
+        }
+
+        /// <summary>
+        /// Update profit for an existing sale row.
+        /// </summary>
+        public async Task UpdateSaleProfitAsync(int saleId, decimal? profit)
+        {
+            const string updateSql = @"
+                UPDATE dbo.Sale
+                SET profit = @profit
+                WHERE saleId = @saleId;";
+
+            var password = await _getPasswordAsync().ConfigureAwait(false);
+            using var conn = _connectionFactory.CreateForCurrentUser(password);
+            password = string.Empty;
+
+            await conn.OpenAsync().ConfigureAwait(false);
+
+            using var cmd = new SqlCommand(updateSql, conn);
+            cmd.Parameters.Add("@saleId", SqlDbType.SmallInt).Value = saleId;
+            cmd.Parameters.Add("@profit", SqlDbType.SmallMoney).Value = (object?)profit ?? DBNull.Value;
+
+            await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
         }
 
         private async Task<string> _getPassword_async_guard()

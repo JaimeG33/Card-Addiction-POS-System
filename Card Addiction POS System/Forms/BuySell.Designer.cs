@@ -321,7 +321,8 @@
             sfDataGrid_CartSummary.Style.DragPreviewRowStyle.RowCountIndicatorTextColor = Color.FromArgb(255, 255, 255);
             sfDataGrid_CartSummary.TabIndex = 2;
             sfDataGrid_CartSummary.Text = "Cart Summary";
-            sfDataGrid_CartSummary.Click += sfDataGrid_CartSummary_Click;
+            sfDataGrid_CartSummary.CurrentCellEndEdit += sfDataGrid_CartSummary_CurrentCellEndEdit;
+            //sfDataGrid_CartSummary.Click += sfDataGrid_CartSummary_Click;
             // 
             // tableLayoutPanel3
             // 
