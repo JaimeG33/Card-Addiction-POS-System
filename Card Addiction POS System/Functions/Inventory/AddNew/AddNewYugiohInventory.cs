@@ -287,7 +287,6 @@ ORDER BY batchPosition, tempId;";
 
             cmd.Parameters.Add("@cardGameId", SqlDbType.Int).Value = cardGameId;
 
-            // Mark as "Sealed" when rarity is missing AND the name indicates sealed product (deck/pack/box/tin/display).
             cmd.CommandText = $@"
 UPDATE dbo.NewTempCardgameInventory
 SET rarity = 'Sealed'
@@ -300,6 +299,23 @@ WHERE cardGameId = @cardGameId
         OR LOWER(cardName) LIKE '%box%'
         OR LOWER(cardName) LIKE '%tin%'
         OR LOWER(cardName) LIKE '%display%'
+        OR LOWER(cardName) LIKE '%collection%'
+        OR LOWER(cardName) LIKE '%bundle%'
+        OR LOWER(cardName) LIKE '%checklane blister%'
+        OR LOWER(cardName) LIKE '%case%'
+        OR LOWER(cardName) LIKE '%chest%'
+        OR LOWER(cardName) LIKE '%build & battle%'
+        OR LOWER(cardName) LIKE '%battle stadium%'
+        OR LOWER(cardName) LIKE '%blister%'
+        OR LOWER(cardName) LIKE '%secret lair%'
+        OR LOWER(cardName) LIKE '%set'
+        OR LOWER(cardName) LIKE '%set%'
+        OR LOWER(cardName) LIKE '%toolkit%'
+        OR LOWER(cardName) LIKE '%tcg%'
+        OR LOWER(cardName) LIKE '%kit'
+        OR LOWER(cardName) LIKE '%kit%'
+        OR LOWER(cardName) LIKE '%calendar'
+        OR LOWER(cardName) LIKE '%calendar%'
       );";
 
             await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
