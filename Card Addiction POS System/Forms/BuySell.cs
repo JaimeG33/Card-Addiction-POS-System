@@ -454,7 +454,8 @@ private sealed class CartSummaryRow
                             "Gather Items",
                             "Items selected. Go to the back and obtain the items now.\n\nPress Return to go back and edit the order, or Next to continue to processing.",
                             "Return",
-                            "Next")));
+                            "Next",
+                            preferRightAsDefault: true)));
                 }
                 else
                 {
@@ -462,7 +463,8 @@ private sealed class CartSummaryRow
                         "Gather Items",
                         "Items selected. Go to the back and obtain the items now.\n\nPress Return to go back and edit the order, or Next to continue to processing.",
                         "Return",
-                        "Next");
+                        "Next",
+                        preferRightAsDefault: true);
                 }
 
                 if (userReturned)
@@ -518,7 +520,8 @@ private sealed class CartSummaryRow
                             "Process Payment",
                             "Begin processing payment now.\n\nPress Return to go back and edit the order, or Process to complete the sale.",
                             "Return",
-                            "Process")));
+                            "Process",
+                            preferRightAsDefault: true)));
                 }
                 else
                 {
@@ -526,7 +529,8 @@ private sealed class CartSummaryRow
                         "Process Payment",
                         "Begin processing payment now.\n\nPress Return to go back and edit the order, or Process to complete the sale.",
                         "Return",
-                        "Process");
+                        "Process",
+                        preferRightAsDefault: true);
                 }
 
                 if (returnToEdit)

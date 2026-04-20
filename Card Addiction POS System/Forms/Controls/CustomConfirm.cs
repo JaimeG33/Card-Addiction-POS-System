@@ -99,7 +99,13 @@ namespace Card_Addiction_POS_System.Forms.Controls
         /// Shows a two-button modal dialog with custom labels.
         /// Returns true when the left button is pressed, false otherwise.
         /// </summary>
-        public static bool ShowTwoButton(IWin32Window? owner, string title, string message, string leftButtonText, string rightButtonText)
+        public static bool ShowTwoButton(
+            IWin32Window? owner,
+            string title,
+            string message,
+            string leftButtonText,
+            string rightButtonText,
+            bool preferRightAsDefault = false)
         {
             using var dlg = new CustomConfirm
             {
@@ -117,9 +123,20 @@ namespace Card_Addiction_POS_System.Forms.Controls
             dlg.LeftButtonText = leftButtonText ?? "Left";
             dlg.RightButtonText = rightButtonText ?? "Right";
 
-            // Default button focus: right (continue)
-            dlg.AcceptButton = dlg._rightButton;
-            dlg.CancelButton = dlg._leftButton;
+            // Keep existing behavior unless explicitly overridden by caller.
+            if (preferRightAsDefault)
+            {
+                dlg.AcceptButton = dlg._rightButton;
+                dlg.CancelButton = dlg._leftButton;
+
+                // Ensure keyboard focus actually lands on right button.
+                dlg.Shown += (_, _) =>
+                {
+                    dlg.ActiveControl = dlg._rightButton;
+                    dlg._rightButton.Focus();
+                    dlg._rightButton.Select();
+                };
+            }
 
             var dr = (owner == null) ? dlg.ShowDialog() : dlg.ShowDialog(owner);
             return dr == DialogResult.Yes;
