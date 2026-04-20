@@ -457,7 +457,7 @@ private sealed class CartSummaryRow
                             "Next",
                             preferRightAsDefault: true)));
                 }
-                else
+                else 
                 {
                     userReturned = CustomConfirm.ShowTwoButton(this,
                         "Gather Items",
