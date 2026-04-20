@@ -326,6 +326,29 @@ namespace Card_Addiction_POS_System.Functions.Sales
             await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Returns true if TransactionLine rows already exist for the provided saleId.
+        /// </summary>
+        public async Task<bool> HasTransactionLinesAsync(int saleId)
+        {
+            const string sql = @"
+                SELECT TOP 1 1
+                FROM dbo.TransactionLine
+                WHERE saleId = @saleId;";
+
+            var password = await _getPasswordAsync().ConfigureAwait(false);
+            using var conn = _connectionFactory.CreateForCurrentUser(password);
+            password = string.Empty;
+
+            await conn.OpenAsync().ConfigureAwait(false);
+
+            using var cmd = new SqlCommand(sql, conn);
+            cmd.Parameters.Add("@saleId", SqlDbType.SmallInt).Value = saleId;
+
+            var result = await cmd.ExecuteScalarAsync().ConfigureAwait(false);
+            return result != null && result != DBNull.Value;
+        }
+
         private async Task<string> _getPassword_async_guard()
         {
             return await _getPasswordAsync().ConfigureAwait(false);

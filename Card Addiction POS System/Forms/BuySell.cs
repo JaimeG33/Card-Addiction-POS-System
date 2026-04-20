@@ -432,9 +432,35 @@ private sealed class CartSummaryRow
                     }
                     else
                     {
-                        // Row exists -> reuse it. Ensure its status is TakingOrder so UI behavior is consistent.
-                        saleId = providedSaleId.Value;
-                        await workflow.UpdateSaleStatusAsync(saleId, OrderStatus.TakingOrder.ToString());
+                        // Existing row found. Reuse only if status is an active in-progress state AND there are no lines yet.
+                        var isInProgressStatus =
+                            string.Equals(existingStatus, OrderStatus.TakingOrder.ToString(), StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(existingStatus, OrderStatus.Processing.ToString(), StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(existingStatus, OrderStatus.ReadyForPickup.ToString(), StringComparison.OrdinalIgnoreCase);
+
+                        var hasExistingLines = await workflow.HasTransactionLinesAsync(providedSaleId.Value);
+
+                        if (!isInProgressStatus || hasExistingLines)
+                        {
+                            // Force a fresh sale id near finalization time to avoid PK collisions on TransactionLine.
+                            _saleIdDeterminer ??= new DetermineSaleId(connectionFactory, Session.PasswordProvider.GetPasswordAsync);
+                            var freshSaleId = await _saleIdDeterminer.ReserveNextSaleIdAsync();
+
+                            saleId = await workflow.CreateSaleAsync(DateTimeOffset.Now,
+                            providedSaleId: freshSaleId,
+                            registerId: (byte)registerIdInt,
+                            employeeId: employeeIdInt.HasValue ? (byte?)employeeIdInt.Value : null,
+                            orderStatus: OrderStatus.TakingOrder.ToString(),
+                            profit: _currentSaleItem.FinalTotal);
+
+                            _reservedSaleId = saleId;
+                        }
+                        else
+                        {
+                            // Safe to reuse
+                            saleId = providedSaleId.Value;
+                            await workflow.UpdateSaleStatusAsync(saleId, OrderStatus.TakingOrder.ToString());
+                        }
                     }
                 }
                 else
