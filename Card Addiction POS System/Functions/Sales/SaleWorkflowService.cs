@@ -59,7 +59,7 @@ namespace Card_Addiction_POS_System.Functions.Sales
     if (providedSaleId.HasValue)
     {
         using var cmd = new SqlCommand(insertWithSaleId, conn);
-        cmd.Parameters.Add("@saleDate", SqlDbType.DateTime).Value = saleDate.UtcDateTime;
+        cmd.Parameters.Add("@saleDate", SqlDbType.DateTime).Value = saleDate.LocalDateTime;
         cmd.Parameters.Add("@saleId", SqlDbType.SmallInt).Value = providedSaleId.Value;
         cmd.Parameters.Add("@register", SqlDbType.TinyInt).Value = registerId;
         if (employeeId.HasValue)
@@ -75,7 +75,7 @@ namespace Card_Addiction_POS_System.Functions.Sales
     else
     {
         using var cmd = new SqlCommand(insertWithoutSaleId, conn);
-        cmd.Parameters.Add("@saleDate", SqlDbType.DateTime).Value = saleDate.UtcDateTime;
+        cmd.Parameters.Add("@saleDate", SqlDbType.DateTime).Value = saleDate.LocalDateTime;
         cmd.Parameters.Add("@register", SqlDbType.TinyInt).Value = registerId;
         if (employeeId.HasValue)
             cmd.Parameters.Add("@employeeId", SqlDbType.TinyInt).Value = employeeId.Value;
