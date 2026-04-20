@@ -50,17 +50,26 @@ namespace Card_Addiction_POS_System.Functions.Sales
         VALUES (@saleDate, @register, @employeeId, @orderStatus, @profit);
         SELECT CAST(SCOPE_IDENTITY() AS int);";
 
+    // Re-check saleId at create time and override any previously provided value.
+    // This keeps id assignment closer to when saleDate is written.
+    int? effectiveSaleId = providedSaleId;
+    if (providedSaleId.HasValue)
+    {
+        var saleIdDeterminer = new DetermineSaleId(_connectionFactory, _getPasswordAsync);
+        effectiveSaleId = await saleIdDeterminer.ReserveNextSaleIdAsync().ConfigureAwait(false);
+    }
+
     var password = await _getPasswordAsync().ConfigureAwait(false);
     using var conn = _connectionFactory.CreateForCurrentUser(password);
     password = string.Empty;
 
     await conn.OpenAsync().ConfigureAwait(false);
 
-    if (providedSaleId.HasValue)
+    if (effectiveSaleId.HasValue)
     {
         using var cmd = new SqlCommand(insertWithSaleId, conn);
         cmd.Parameters.Add("@saleDate", SqlDbType.DateTime).Value = saleDate.LocalDateTime;
-        cmd.Parameters.Add("@saleId", SqlDbType.SmallInt).Value = providedSaleId.Value;
+        cmd.Parameters.Add("@saleId", SqlDbType.SmallInt).Value = effectiveSaleId.Value;
         cmd.Parameters.Add("@register", SqlDbType.TinyInt).Value = registerId;
         if (employeeId.HasValue)
             cmd.Parameters.Add("@employeeId", SqlDbType.TinyInt).Value = employeeId.Value;
@@ -70,7 +79,7 @@ namespace Card_Addiction_POS_System.Functions.Sales
         cmd.Parameters.Add("@profit", SqlDbType.SmallMoney).Value = (object?)profit ?? DBNull.Value;
 
         await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
-        return providedSaleId.Value;
+        return effectiveSaleId.Value;
     }
     else
     {
