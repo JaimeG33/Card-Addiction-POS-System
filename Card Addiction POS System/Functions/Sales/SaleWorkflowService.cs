@@ -207,7 +207,7 @@ namespace Card_Addiction_POS_System.Functions.Sales
                     var pAgreed = cmd.Parameters.Add("@agreedPrice", SqlDbType.SmallMoney);
                     pAgreed.Value = item.AgreedPrice;
 
-                    cmd.Parameters.Add("@amtTraded", SqlDbType.TinyInt).Value = (byte)item.AmtTraded;
+                    cmd.Parameters.Add("@amtTraded", SqlDbType.Int).Value = item.AmtTraded;
                     cmd.Parameters.Add("@buyOrSell", SqlDbType.Bit).Value = item.BuyOrSell;
 
                     await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);

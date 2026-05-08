@@ -92,6 +92,16 @@ private sealed class CartSummaryRow
             sfDataGrid_Cart.SelectionUnit = SelectionUnit.Row;
             sfDataGrid_Cart.Columns.Clear();
 
+            sfDataGrid_Cart.Columns.Add(new GridNumericColumn
+            {
+                MappingName = nameof(TransactionLineItem.AmtTraded),
+                HeaderText = "Qty",
+                Width = 75,
+                MinimumWidth = 60,
+                AllowEditing = true,
+                NumberFormatInfo = new NumberFormatInfo { NumberDecimalDigits = 0, NumberGroupSeparator = string.Empty }
+            });
+
             sfDataGrid_Cart.Columns.Add(new GridTextColumn
             {
                 MappingName = nameof(TransactionLineItem.CardName),
@@ -99,6 +109,17 @@ private sealed class CartSummaryRow
                 Width = 420,
                 MinimumWidth = 260,
                 AllowEditing = false
+            });
+
+            sfDataGrid_Cart.Columns.Add(new GridNumericColumn
+            {
+                MappingName = nameof(TransactionLineItem.AgreedPrice),
+                HeaderText = "Agreed Price",
+                Width = 120,
+                MinimumWidth = 95,
+                AllowEditing = true,
+                FormatMode = FormatMode.Currency,
+                NumberFormatInfo = new NumberFormatInfo { CurrencyDecimalDigits = 2, CurrencySymbol = "$" }
             });
 
             sfDataGrid_Cart.Columns.Add(new GridTextColumn
@@ -117,27 +138,6 @@ private sealed class CartSummaryRow
                 Width = 170,
                 MinimumWidth = 120,
                 AllowEditing = false
-            });
-
-            sfDataGrid_Cart.Columns.Add(new GridNumericColumn
-            {
-                MappingName = nameof(TransactionLineItem.AmtTraded),
-                HeaderText = "Qty",
-                Width = 75,
-                MinimumWidth = 60,
-                AllowEditing = true,
-                NumberFormatInfo = new NumberFormatInfo { NumberDecimalDigits = 0, NumberGroupSeparator = string.Empty }
-            });
-
-            sfDataGrid_Cart.Columns.Add(new GridNumericColumn
-            {
-                MappingName = nameof(TransactionLineItem.AgreedPrice),
-                HeaderText = "Agreed Price",
-                Width = 120,
-                MinimumWidth = 95,
-                AllowEditing = true,
-                FormatMode = FormatMode.Currency,
-                NumberFormatInfo = new NumberFormatInfo { CurrencyDecimalDigits = 2, CurrencySymbol = "$" }
             });
 
             sfDataGrid_Cart.DataSource = _cartBinding;

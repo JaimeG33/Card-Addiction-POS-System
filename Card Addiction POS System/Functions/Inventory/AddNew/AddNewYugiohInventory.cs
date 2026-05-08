@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading;
@@ -21,6 +22,10 @@ namespace Card_Addiction_POS_System.Functions.Inventory.AddNew
         private readonly Func<Task<string>> _getPasswordAsync;
         private readonly HttpClient _http;
 
+        private const string TcgCsvUserAgent = "CardAddictionPOS/1.0";
+        private static readonly TimeSpan TcgCsvRequestDelay = TimeSpan.FromMilliseconds(100);
+        private const int MaxHttpAttempts = 3;
+
         /// <summary>
         /// Accepts the app's SqlConnectionFactory + password delegate; allows injecting HttpClient for tests.
         /// </summary>
@@ -30,10 +35,9 @@ namespace Card_Addiction_POS_System.Functions.Inventory.AddNew
             _getPasswordAsync = getPasswordAsync ?? throw new ArgumentNullException(nameof(getPasswordAsync));
             _http = http ?? new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
 
-            // Some endpoints block unknown clients; present a common browser UA.
             if (!_http.DefaultRequestHeaders.UserAgent.Any())
             {
-                _http.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36");
+                _http.DefaultRequestHeaders.UserAgent.ParseAdd(TcgCsvUserAgent);
             }
         }
 
@@ -170,8 +174,7 @@ VALUES
         {
             // TCGCSV expects categoryId/groupId in the path: tcgplayer/{categoryId}/{groupId}/products
             var url = $"https://tcgcsv.com/tcgplayer/{cardGameId}/{setId}/products";
-            using var resp = await _http.GetAsync(url, ct).ConfigureAwait(false);
-            resp.EnsureSuccessStatusCode();
+            using var resp = await GetWithThrottleAndRetryAsync(url, ct).ConfigureAwait(false);
 
             var json = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
             var opts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
@@ -183,6 +186,47 @@ VALUES
             }
 
             return parsed.Results.Where(r => r.GroupId == setId).ToList();
+        }
+
+        private async Task<HttpResponseMessage> GetWithThrottleAndRetryAsync(string url, CancellationToken ct)
+        {
+            await Task.Delay(TcgCsvRequestDelay, ct).ConfigureAwait(false);
+
+            HttpResponseMessage? lastResponse = null;
+
+            for (int attempt = 1; attempt <= MaxHttpAttempts; attempt++)
+            {
+                lastResponse?.Dispose();
+                lastResponse = await _http.GetAsync(url, ct).ConfigureAwait(false);
+
+                if (lastResponse.IsSuccessStatusCode)
+                {
+                    return lastResponse;
+                }
+
+                if (!IsRetryable(lastResponse.StatusCode) || attempt == MaxHttpAttempts)
+                {
+                    var responseBody = await lastResponse.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+                    throw new HttpRequestException(
+                        $"TCGCSV request failed ({(int)lastResponse.StatusCode} {lastResponse.ReasonPhrase}). URL: {url}. Body: {responseBody}",
+                        null,
+                        lastResponse.StatusCode);
+                }
+
+                var backoff = TimeSpan.FromMilliseconds(250 * Math.Pow(2, attempt - 1));
+                await Task.Delay(backoff, ct).ConfigureAwait(false);
+            }
+
+            throw new HttpRequestException("TCGCSV request failed after retries.");
+        }
+
+        private static bool IsRetryable(HttpStatusCode statusCode)
+        {
+            return statusCode == HttpStatusCode.RequestTimeout
+                || statusCode == HttpStatusCode.TooManyRequests
+                || statusCode == HttpStatusCode.BadGateway
+                || statusCode == HttpStatusCode.ServiceUnavailable
+                || statusCode == HttpStatusCode.GatewayTimeout;
         }
 
         // ---- PRODUCT FIELD HELPERS ----
